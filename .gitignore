@@ -2,3 +2,5 @@
 /src/data
 /src/__pycache__
 .venv
+remote
+notebook/.ipynb_checkpoints
