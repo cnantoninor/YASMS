@@ -4,3 +4,4 @@
 .venv
 notebook/.ipynb_checkpoints
 remote/wl-poc.pem
+notebook/binary-classification_stato_workflow/.lock_preprocessing

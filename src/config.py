@@ -24,5 +24,9 @@ class Paths:
 
     testnino1_classification_task: Path = data / "wl_classif_testnino1/TESTNINO1.csv"
 
+    testnino1_classification_task_refined: Path = (
+        data / "wl_classif_testnino1/TESTNINO1_without_StatoWorkflow_N.csv"
+    )
+
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
