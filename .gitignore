@@ -8,3 +8,8 @@ notebook/binary-classification_stato_workflow/.lock_preprocessing
 notebook/binary-classification_stato_workflow/ludwig/data/*
 notebook/binary-classification_stato_workflow/ludwig/results/*
 **/.lock_preprocessing
+test_file.zip
+notebook/binary-classification_stato_workflow/balanced_train/output_all_by_argomento.csv
+notebook/binary-classification_stato_workflow/results_all.pkl
+src/trainer/__pycache__/app_test.cpython-310-pytest-8.0.0.pyc
+src/trainer/__pycache__/app.cpython-310.pyc
