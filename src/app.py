@@ -1,37 +1,51 @@
-from fastapi import FastAPI
-from langchain.chains import RetrievalQA
-from langchain.chat_models import ChatOpenAI
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import ElasticVectorSearch
+from datetime import datetime
+from io import BufferedReader
+import io
+import os
+from fastapi import FastAPI, File, UploadFile, Form
+from typing import Optional
+import zipfile
+import config
 
-from config import openai_api_key
-
-embedding = OpenAIEmbeddings(openai_api_key=openai_api_key)
-
-db = ElasticVectorSearch(
-    elasticsearch_url="http://localhost:9200",
-    index_name="elastic-index",
-    embedding=embedding,
-)
-qa = RetrievalQA.from_chain_type(
-    llm=ChatOpenAI(temperature=0),
-    chain_type="stuff",
-    retriever=db.as_retriever(),
-)
+os.makedirs(config.data_path, exist_ok=True)
 
 app = FastAPI()
 
 
-@app.get("/")
-def index():
-    return {
-        "message": "Make a post request to /ask to ask questions about Meditations by Marcus Aurelius"
-    }
+@app.post("/upload_model_data")
+async def upload_file(model_data: UploadFile = File(...), model_name: str = Form(...)):
+    """
+    Uploads a file and returns the filename and model name.
+
+    Args:
+        model_data (UploadFile): The file to be uploaded.
+        model_name (str): The name of the model.
+
+    Returns:
+        dict: A dictionary containing the filename and model name.
+    """
+
+    contents = await model_data.read()
+
+    # Check if the file is a zip file
+    if zipfile.is_zipfile(io.BytesIO(contents)):
+        # If it's a zip file, extract it
+        with zipfile.ZipFile(io.BytesIO(contents), "r") as zip_ref:
+            zip_ref.extractall(path=config.data_path)
+    else:
+        # If it's not a zip file, write it directly
+        with open(os.path.join(config.data_path, model_data.filename), "wb") as f:
+            f.write(contents)
+
+    return {"filename": model_data.filename, "model_name": model_name}
 
 
-@app.post("/ask")
-def ask(query: str):
-    response = qa.run(query)
-    return {
-        "response": response,
-    }
+def __date_path() -> str:
+    # Get the current date and time
+    now = datetime.now()
+
+    # Format the date and time as a string
+    date_time_str = now.strftime("%Y/%m/%d_%H:%M:%S_%f")
+
+    # Concatenate the model name and the date and time string
+    return date_time_str
