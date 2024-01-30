@@ -6,14 +6,14 @@ import os
 from io import BytesIO
 import zipfile
 import config
-from app import app, __date_path
+from app import app, __determine_date_path
 
 client = TestClient(app)
 
 os.makedirs(config.test_data_path, exist_ok=True)
 
 
-def test_upload_data_model_zipped():
+def test_upload_training_data_zipped():
     """
     Test case for uploading a file.
 
@@ -24,6 +24,8 @@ def test_upload_data_model_zipped():
         None
     """
     model_name = "test_model"
+    model_type = config.Constants.model_spam_type
+
     with open(config.Paths.test_data__upload_train_data_csv, "rb") as file:
         file_data = file.read()
 
@@ -35,27 +37,54 @@ def test_upload_data_model_zipped():
     zip_data.seek(0)
 
     response = client.post(
-        "/upload",
-        data={"model_name": model_name},
+        "/upload_train_data",
+        data={"model_name": model_name, "model_type": model_type},
         files={
-            "model_data": (
+            "train_data": (
                 "test_file.zip",
                 zip_data,
                 "application/zip",
             )
         },
     )
-    print(response)
-    print(response.content)
+
+    assert_upload_response(response)
+
+
+def assert_upload_response(response):
     assert response.status_code == 200
-    assert response.json() == {
-        "filename": "test_file.zip",
-        "model_name": model_name,
-    }
-
-
-def test___date_path():
+    uploaded_train_data_path = response.json()["uploaded_train_data_path"]
+    assert uploaded_train_data_path is not None
+    assert os.path.exists(uploaded_train_data_path)
     now = datetime.now()
-    assert __date_path() is not None
-    assert __date_path().startswith(now.strftime("%Y/%m/%d_%H:%M:%S"))
-    print(__date_path())
+    assert now.strftime("%Y%m%d_%H:%M") in uploaded_train_data_path
+
+
+def test___determine_date_path():
+    dt_path = __determine_date_path()
+    assert dt_path is not None
+    now = datetime.now()
+    assert dt_path.startswith(now.strftime("%Y%m%d_%H:%M:%S"))
+    print(dt_path)
+
+
+def test_upload_training_data_unzipped():
+    model_name = "test_model"
+    model_type = config.Constants.model_spam_type
+
+    with open(config.Paths.test_data__upload_train_data_csv, "rb") as file:
+        file_data = file.read()
+
+    response = client.post(
+        "/upload_train_data",
+        data={"model_name": model_name, "model_type": model_type},
+        files={
+            "train_data": (
+                "test_file.csv",
+                file_data,
+                "application/csv",
+            )
+        },
+    )
+
+    assert_upload_response(response)

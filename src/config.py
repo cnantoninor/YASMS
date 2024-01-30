@@ -9,6 +9,7 @@ load_dotenv()
 src_path = os.path.dirname(os.path.abspath(__file__))
 root_path: Path = Path(__file__).parent.parent
 data_path: Path = root_path / "data"
+train_data_path: Path = data_path / "train"
 test_data_path: Path = root_path / "test_data"
 
 
@@ -33,6 +34,12 @@ class Paths:
         data_path / "wl_classif_testnino1/TESTNINO1_without_StatoWorkflow_N.csv"
     )
     test_data__upload_train_data_csv: Path = test_data_path / "upload_train_data.csv"
+
+
+@dataclass
+class Constants:
+    model_spam_type = "spam_classifier"
+    valid_model_types = [model_spam_type]
 
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
