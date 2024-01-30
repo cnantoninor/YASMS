@@ -11,7 +11,7 @@ app = FastAPI()
 
 
 @app.post("/upload_train_data")
-async def upload_file(
+async def upload_train_data(
     train_data: UploadFile = File(...),
     model_type: str = Form(...),
     model_name: str = Form(...),

@@ -1,9 +1,7 @@
 from datetime import datetime
 import io
 from fastapi.testclient import TestClient
-import pytest
 import os
-from io import BytesIO
 import zipfile
 import config
 from app import app, __determine_date_path
