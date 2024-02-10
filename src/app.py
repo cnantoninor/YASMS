@@ -1,37 +1,120 @@
-from fastapi import FastAPI
-from langchain.chains import RetrievalQA
-from langchain.chat_models import ChatOpenAI
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import ElasticVectorSearch
-
-from config import openai_api_key
-
-embedding = OpenAIEmbeddings(openai_api_key=openai_api_key)
-
-db = ElasticVectorSearch(
-    elasticsearch_url="http://localhost:9200",
-    index_name="elastic-index",
-    embedding=embedding,
-)
-qa = RetrievalQA.from_chain_type(
-    llm=ChatOpenAI(temperature=0),
-    chain_type="stuff",
-    retriever=db.as_retriever(),
-)
+from datetime import datetime
+import io
+import logging
+import os
+import glob
+from fastapi import FastAPI, File, UploadFile, Form
+import zipfile
+import config
+import shutil
+import pandas as pd
+from typing import List
 
 app = FastAPI()
 
 
-@app.get("/")
-def index():
-    return {
-        "message": "Make a post request to /ask to ask questions about Meditations by Marcus Aurelius"
-    }
+@app.post("/upload_train_data")
+async def upload_train_data(
+    train_data: UploadFile = File(...),
+    model_type: str = Form(...),
+    model_name: str = Form(...),
+    features_fields: List[str] = Form(...),
+    target_field: str = Form(...),
+):
+    """
+    Uploads a file to the specified model type and model name directory.
+
+    Args:
+        train_data (UploadFile): The file to be uploaded.
+        model_type (str): The type of the model.
+        model_name (str): The name of the model.
+
+    Returns:
+        dict: A dictionary containing the uploaded train data path.
+    """
+
+    contents = await train_data.read()
+
+    assert model_type in config.Constants.valid_model_types
+
+    train_data_dir = (
+        config.train_data_path.joinpath(model_type)
+        .joinpath(model_name)
+        .joinpath(__determine_date_path())
+    )
+
+    os.makedirs(train_data_dir, exist_ok=True)
+
+    # Check if the file is a zip file
+    if zipfile.is_zipfile(io.BytesIO(contents)):
+        # If it's a zip file, extract it
+        with zipfile.ZipFile(io.BytesIO(contents), "r") as zip_ref:
+            zip_ref.extractall(path=train_data_dir)
+    else:
+        # If it's not a zip file, write it directly
+        with open(os.path.join(train_data_dir, train_data.filename), "wb") as f:
+            f.write(contents)
+
+    __check_csv_file(train_data_dir, features_fields, target_field)
+    __clean_train_data_dir_if_needed(train_data_dir.parent)
+
+    logging.info(
+        "Successfully Uploaded train data for model type {} and model name {} in {}, with features:{} and target:{}",
+        model_type,
+        model_name,
+        train_data_dir,
+        features_fields,
+        target_field,
+    )
+
+    return {"uploaded_train_data_path": train_data_dir}
 
 
-@app.post("/ask")
-def ask(query: str):
-    response = qa.run(query)
-    return {
-        "response": response,
-    }
+def __check_csv_file(directory, features_fields, target_field):
+    csv_files = glob.glob(os.path.join(directory, "*.csv"))
+    if len(csv_files) == 0:
+        raise ValueError(f"No CSV file found in the train data dir: {directory}.")
+
+    df = pd.read_csv(csv_files[0])
+
+    missing_columns = []
+    for column in features_fields:
+        if column not in df.columns:
+            missing_columns.append(column)
+
+    if target_field not in df.columns:
+        missing_columns.append(target_field)
+
+    if missing_columns:
+        shutil.rmtree(directory)
+        raise ValueError(
+            f"The following columns are missing in the {csv_files[0]}: {missing_columns}"
+        )
+
+    if len(df) < 50:
+        shutil.rmtree(directory)
+        raise ValueError(f"The {csv_files[0]} must have at least 50 rows.")
+
+
+def __clean_train_data_dir_if_needed(directory: str) -> None:
+    # Get a list of all subdirectories
+    subdirectories = [
+        os.path.join(directory, d)
+        for d in os.listdir(directory)
+        if os.path.isdir(os.path.join(directory, d))
+    ]
+
+    # If there are more than 10 subdirectories
+    if len(subdirectories) > 10:
+        # Sort the subdirectories alphabetically
+        subdirectories.sort()
+
+        # Remove the ones that are on top of the sorted list until only 10 remain
+        for subdirectory in subdirectories[:-10]:
+            shutil.rmtree(subdirectory)
+
+
+def __determine_date_path() -> str:
+    now = datetime.now()
+    date_time_str = now.strftime("%Y%m%d_%H:%M:%S_%f")
+    return date_time_str

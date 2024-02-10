@@ -7,7 +7,7 @@ from config import Paths, openai_api_key
 
 def main():
     loader = CSVLoader(
-        file_path=str(Paths.mrau_weblive_project1_1k_mentions),
+        file_path=str(Paths.testnino1_classification_task),
         source_column="Link",
         csv_args={
             "delimiter": ",",
