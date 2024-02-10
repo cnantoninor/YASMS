@@ -1,11 +1,14 @@
 from datetime import datetime
 import io
+import logging
 import os
 import glob
 from fastapi import FastAPI, File, UploadFile, Form
 import zipfile
 import config
 import shutil
+import pandas as pd
+from typing import List
 
 app = FastAPI()
 
@@ -15,6 +18,8 @@ async def upload_train_data(
     train_data: UploadFile = File(...),
     model_type: str = Form(...),
     model_name: str = Form(...),
+    features_fields: List[str] = Form(...),
+    target_field: str = Form(...),
 ):
     """
     Uploads a file to the specified model type and model name directory.
@@ -30,40 +35,65 @@ async def upload_train_data(
 
     contents = await train_data.read()
 
-    assert model_type is not None
     assert model_type in config.Constants.valid_model_types
-    assert model_name is not None
 
-    train_data_path = (
+    train_data_dir = (
         config.train_data_path.joinpath(model_type)
         .joinpath(model_name)
         .joinpath(__determine_date_path())
     )
 
-    os.makedirs(train_data_path, exist_ok=True)
+    os.makedirs(train_data_dir, exist_ok=True)
 
     # Check if the file is a zip file
     if zipfile.is_zipfile(io.BytesIO(contents)):
         # If it's a zip file, extract it
         with zipfile.ZipFile(io.BytesIO(contents), "r") as zip_ref:
-            zip_ref.extractall(path=train_data_path)
+            zip_ref.extractall(path=train_data_dir)
     else:
         # If it's not a zip file, write it directly
-        with open(os.path.join(train_data_path, train_data.filename), "wb") as f:
+        with open(os.path.join(train_data_dir, train_data.filename), "wb") as f:
             f.write(contents)
 
-    __check_csv_exists(train_data_path)
+    __check_csv_file(train_data_dir, features_fields, target_field)
+    __clean_train_data_dir_if_needed(train_data_dir.parent)
 
-    __check_fields_exists_in_csv_file(train_data_path, model_type)
+    logging.info(
+        "Successfully Uploaded train data for model type {} and model name {} in {}, with features:{} and target:{}",
+        model_type,
+        model_name,
+        train_data_dir,
+        features_fields,
+        target_field,
+    )
 
-    __clean_train_data_dir_if_needed(train_data_path.parent)
-
-    return {"uploaded_train_data_path": train_data_path}
+    return {"uploaded_train_data_path": train_data_dir}
 
 
-def __check_fields_exists_in_csv_file(directory, model_type):
-    # TODO Add your implementation here
-    pass
+def __check_csv_file(directory, features_fields, target_field):
+    csv_files = glob.glob(os.path.join(directory, "*.csv"))
+    if len(csv_files) == 0:
+        raise ValueError(f"No CSV file found in the train data dir: {directory}.")
+
+    df = pd.read_csv(csv_files[0])
+
+    missing_columns = []
+    for column in features_fields:
+        if column not in df.columns:
+            missing_columns.append(column)
+
+    if target_field not in df.columns:
+        missing_columns.append(target_field)
+
+    if missing_columns:
+        shutil.rmtree(directory)
+        raise ValueError(
+            f"The following columns are missing in the {csv_files[0]}: {missing_columns}"
+        )
+
+    if len(df) < 50:
+        shutil.rmtree(directory)
+        raise ValueError(f"The {csv_files[0]} must have at least 50 rows.")
 
 
 def __clean_train_data_dir_if_needed(directory: str) -> None:
@@ -82,12 +112,6 @@ def __clean_train_data_dir_if_needed(directory: str) -> None:
         # Remove the ones that are on top of the sorted list until only 10 remain
         for subdirectory in subdirectories[:-10]:
             shutil.rmtree(subdirectory)
-
-
-def __check_csv_exists(directory: str) -> None:
-    csv_files = glob.glob(os.path.join(directory, "*.csv"))
-    if len(csv_files) == 0:
-        raise ValueError(f"No CSV files found in the train data dir: {directory}.")
 
 
 def __determine_date_path() -> str:

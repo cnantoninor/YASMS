@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 import os
 import zipfile
 import config
-from app import app, __determine_date_path
+from app import app, __determine_date_path, __check_csv_file
 
 client = TestClient(app)
 
@@ -36,7 +36,12 @@ def test_upload_training_data_zipped():
 
     response = client.post(
         "/upload_train_data",
-        data={"model_name": model_name, "model_type": model_type},
+        data={
+            "model_name": model_name,
+            "model_type": model_type,
+            "features_fields": ["Testo"],
+            "target_field": "Stato Workflow",
+        },
         files={
             "train_data": (
                 "test_file.zip",
@@ -75,7 +80,12 @@ def test_upload_training_data_unzipped():
 
     response = client.post(
         "/upload_train_data",
-        data={"model_name": model_name, "model_type": model_type},
+        data={
+            "model_name": model_name,
+            "model_type": model_type,
+            "features_fields": ["Testo"],
+            "target_field": "Stato Workflow",
+        },
         files={
             "train_data": (
                 "test_file.csv",
@@ -84,5 +94,4 @@ def test_upload_training_data_unzipped():
             )
         },
     )
-
     assert_upload_response(response)

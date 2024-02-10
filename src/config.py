@@ -1,3 +1,4 @@
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -5,6 +6,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    filename="app.log",
+    level=logging.INFO,
+    format="%(asctime)s %(message)s",  # Include timestamps
+    datefmt="%Y-%m-%d %H:%M:%S",  # Format of the timestamp
+)
+
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 root_path: Path = Path(__file__).parent.parent
