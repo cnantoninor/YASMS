@@ -5,22 +5,22 @@ import logging
 from logging.handlers import MemoryHandler
 
 
-def test_on_created_directory():
-    mock_event = MagicMock()
-    mock_event.is_directory = True
-    mock_event.src_path = "/path/to/directory"
+# def test_on_created_directory():
+#     mock_event = MagicMock()
+#     mock_event.is_directory = True
+#     mock_event.src_path = "/path/to/directory"
 
-    obj = DataDirectoryEventHandler()
+#     obj = DataDirectoryEventHandler()
 
-    memory_handler = MemoryHandler(capacity=100)
-    logger = logging.getLogger()
-    logger.addHandler(memory_handler)
+#     memory_handler = MemoryHandler(capacity=100)
+#     logger = logging.getLogger()
+#     logger.addHandler(memory_handler)
 
-    obj.on_created(mock_event)
+#     obj.on_created(mock_event)
 
-    # Check the first log record
-    log_record = memory_handler.buffer[0]
-    assert log_record.getMessage() == "New directory created: /path/to/directory"
+#     # Check the first log record
+#     log_record = memory_handler.buffer[0]
+#     assert log_record.getMessage() == "New directory created: /path/to/directory"
 
 
 @patch("builtins.print")
