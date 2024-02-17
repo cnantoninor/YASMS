@@ -40,7 +40,7 @@ async def upload_train_data(
     train_data_dir = (
         config.train_data_path.joinpath(model_type)
         .joinpath(model_name)
-        .joinpath(__determine_date_path())
+        .joinpath(determine_model_instance_name_date_path())
     )
 
     os.makedirs(train_data_dir, exist_ok=True)
@@ -114,7 +114,7 @@ def __clean_train_data_dir_if_needed(directory: str) -> None:
             shutil.rmtree(subdirectory)
 
 
-def __determine_date_path() -> str:
+def determine_model_instance_name_date_path() -> str:
     now = datetime.now()
     date_time_str = now.strftime("%Y%m%d_%H-%M-%S-%f")
     return date_time_str

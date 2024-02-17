@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 import os
 import zipfile
 import config
-from app import app, __determine_date_path, __check_csv_file
+from app import app, determine_model_instance_name_date_path, __check_csv_file
 
 client = TestClient(app)
 
@@ -63,8 +63,8 @@ def assert_upload_response(response):
     assert now.strftime("%Y%m%d_%H-%M") in uploaded_train_data_path
 
 
-def test___determine_date_path():
-    dt_path = __determine_date_path()
+def test_determine_model_instance_name_date_path():
+    dt_path = determine_model_instance_name_date_path()
     assert dt_path is not None
     now = datetime.now()
     assert dt_path.startswith(now.strftime("%Y%m%d_%H-%M-%S"))
