@@ -33,9 +33,9 @@ async def upload_train_data(
         dict: A dictionary containing the uploaded train data path.
     """
 
-    contents = await train_data.read()
-
     assert model_type in config.Constants.valid_model_types
+
+    contents = await train_data.read()
 
     train_data_dir = (
         config.train_data_path.joinpath(model_type)
@@ -116,5 +116,5 @@ def __clean_train_data_dir_if_needed(directory: str) -> None:
 
 def __determine_date_path() -> str:
     now = datetime.now()
-    date_time_str = now.strftime("%Y%m%d_%H:%M:%S_%f")
+    date_time_str = now.strftime("%Y%m%d_%H-%M-%S-%f")
     return date_time_str

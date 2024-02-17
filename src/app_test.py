@@ -60,14 +60,14 @@ def assert_upload_response(response):
     assert uploaded_train_data_path is not None
     assert os.path.exists(uploaded_train_data_path)
     now = datetime.now()
-    assert now.strftime("%Y%m%d_%H:%M") in uploaded_train_data_path
+    assert now.strftime("%Y%m%d_%H-%M") in uploaded_train_data_path
 
 
 def test___determine_date_path():
     dt_path = __determine_date_path()
     assert dt_path is not None
     now = datetime.now()
-    assert dt_path.startswith(now.strftime("%Y%m%d_%H:%M:%S"))
+    assert dt_path.startswith(now.strftime("%Y%m%d_%H-%M-%S"))
     print(dt_path)
 
 
