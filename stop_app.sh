@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd src
+
 # Find the PID of the uvicorn process
 pid=$(ps -ef | grep uvicorn | grep -v grep | awk '{print $2}')
 
