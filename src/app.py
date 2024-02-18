@@ -10,8 +10,9 @@ import shutil
 import pandas as pd
 from typing import List
 
+logging.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> STARTING APP <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 app = FastAPI()
-
+logging.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>    STARTED   <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
 @app.post("/upload_train_data")
 async def upload_train_data(

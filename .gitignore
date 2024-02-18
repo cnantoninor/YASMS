@@ -16,3 +16,6 @@ notebook/**/*.csv
 **/.lock_preprocessing
 **/.ipynb_checkpoints
 data/*
+src/app.log
+src/uvicorn.log
+src/uvicorn.err.log
