@@ -48,8 +48,13 @@ class Paths:
 
 @dataclass
 class Constants:
-    model_spam_type = "spam_classifier"
-    valid_model_types = [model_spam_type]
+    MODEL_SPAM_TYPE = "spam_classifier"
+    VALID_MODEL_TYPES = [MODEL_SPAM_TYPE]
+    MODEL_DATA_FILE = "model_data.csv"
+    TRAINING_IN_PROGRESS_LOG = "training_in_progress.log"
+    TRAINING_ERROR_LOG = "training_error.log"
+    TRAINING_SUBDIR = "training"
+    TRAINED_MODEL_FILE = "trained_model.pickle"
 
 
 openai_api_key = os.getenv("OPENAI_API_KEY")

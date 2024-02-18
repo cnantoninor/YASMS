@@ -21,15 +21,15 @@ def test_upload_training_data_zipped():
     Returns:
         None
     """
-    model_name = "test_model"
-    model_type = config.Constants.model_spam_type
+    mod_name = "test_model"
+    mod_type = config.Constants.MODEL_SPAM_TYPE
 
     with open(config.Paths.test_data__upload_train_data_csv, "rb") as file:
         file_data = file.read()
 
     zip_data = io.BytesIO()
     with zipfile.ZipFile(zip_data, "w") as zip_file:
-        zip_file.writestr("model_data.csv", file_data)
+        zip_file.writestr(config.Constants.MODEL_DATA_FILE, file_data)
 
     # Go to the start of the BytesIO stream
     zip_data.seek(0)
@@ -37,8 +37,8 @@ def test_upload_training_data_zipped():
     response = client.post(
         "/upload_train_data",
         data={
-            "model_name": model_name,
-            "model_type": model_type,
+            "mod_name": mod_name,
+            "mod_type": mod_type,
             "features_fields": ["Testo"],
             "target_field": "Stato Workflow",
         },
@@ -55,6 +55,7 @@ def test_upload_training_data_zipped():
 
 
 def assert_upload_response(response):
+    print(response.json())
     assert response.status_code == 200
     uploaded_train_data_path = response.json()["uploaded_train_data_path"]
     assert uploaded_train_data_path is not None
@@ -72,8 +73,8 @@ def test_determine_model_instance_name_date_path():
 
 
 def test_upload_training_data_unzipped():
-    model_name = "test_model"
-    model_type = config.Constants.model_spam_type
+    mod_name = "test_model"
+    mod_type = config.Constants.MODEL_SPAM_TYPE
 
     with open(config.Paths.test_data__upload_train_data_csv, "rb") as file:
         file_data = file.read()
@@ -81,8 +82,8 @@ def test_upload_training_data_unzipped():
     response = client.post(
         "/upload_train_data",
         data={
-            "model_name": model_name,
-            "model_type": model_type,
+            "mod_name": mod_name,
+            "mod_type": mod_type,
             "features_fields": ["Testo"],
             "target_field": "Stato Workflow",
         },

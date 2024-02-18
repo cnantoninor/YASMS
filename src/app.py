@@ -16,8 +16,8 @@ app = FastAPI()
 @app.post("/upload_train_data")
 async def upload_train_data(
     train_data: UploadFile = File(...),
-    model_type: str = Form(...),
-    model_name: str = Form(...),
+    mod_type: str = Form(...),
+    mod_name: str = Form(...),
     features_fields: List[str] = Form(...),
     target_field: str = Form(...),
 ):
@@ -26,20 +26,20 @@ async def upload_train_data(
 
     Args:
         train_data (UploadFile): The file to be uploaded.
-        model_type (str): The type of the model.
-        model_name (str): The name of the model.
+        mod_type (str): The type of the model.
+        mod_name (str): The name of the model.
 
     Returns:
         dict: A dictionary containing the uploaded train data path.
     """
 
-    assert model_type in config.Constants.valid_model_types
+    assert mod_type in config.Constants.VALID_MODEL_TYPES
 
     contents = await train_data.read()
 
     train_data_dir = (
-        config.train_data_path.joinpath(model_type)
-        .joinpath(model_name)
+        config.train_data_path.joinpath(mod_type)
+        .joinpath(mod_name)
         .joinpath(determine_model_instance_name_date_path())
     )
 
@@ -60,8 +60,8 @@ async def upload_train_data(
 
     logging.info(
         "Successfully Uploaded train data for model type {} and model name {} in {}, with features:{} and target:{}",
-        model_type,
-        model_name,
+        mod_type,
+        mod_name,
         train_data_dir,
         features_fields,
         target_field,

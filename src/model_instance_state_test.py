@@ -1,8 +1,9 @@
 import unittest
 import os
 import tempfile
-from model_instance_state import ModelInstanceState
+from model_instance_state import ModelInstanceState, ModelInstanceStateNames
 from app import determine_model_instance_name_date_path
+from config import Constants
 
 
 class TestModelInstanceState(unittest.TestCase):
@@ -41,7 +42,7 @@ class TestModelInstanceState(unittest.TestCase):
         # Test the properties of ModelInstanceState
         mod_instance_name = determine_model_instance_name_date_path()
         mod_name = "kmeans_123"
-        mod_type = "spam_classifier"
+        mod_type = Constants.MODEL_SPAM_TYPE
         os.makedirs(
             os.path.join(self.test_dir.name, mod_type, mod_name, mod_instance_name)
         )
@@ -66,6 +67,47 @@ class TestModelInstanceState(unittest.TestCase):
             mis.instance_date,
             mod_instance_name,
             f"ModelInstanceState.instance_date should return the model instance date {mod_instance_name}",
+        )
+
+    def test_determine_state(self):
+        # Test the __determine_state method of ModelInstanceState
+        mod_instance_name = determine_model_instance_name_date_path()
+        mod_name = "kmeans_123"
+        mod_type = Constants.MODEL_SPAM_TYPE
+        os.makedirs(
+            os.path.join(self.test_dir.name, mod_type, mod_name, mod_instance_name)
+        )
+        fullpath = os.path.join(
+            self.test_dir.name, mod_type, mod_name, mod_instance_name
+        )
+
+        # Test when the state cannot be determined
+        with self.assertRaises(ValueError) as cm:
+            _ = ModelInstanceState(fullpath).state
+            self.assertIn("Could not determine state for", str(cm.exception))
+
+        # Test when the dir contains only a model.csv file
+        with open(os.path.join(fullpath, Constants.MODEL_DATA_FILE), "w") as f:
+            f.write("model data")
+        mis = ModelInstanceState(fullpath)
+        self.assertEqual(
+            mis.state,
+            ModelInstanceStateNames.DATA_UPLOADED,
+            f"ModelInstanceState.state should be DATA_UPLOADED when {Constants.MODEL_DATA_FILE} exists",
+        )
+
+        # Test when the dir contains also a training subdir and the training_in_progress_file
+        training_subdir = os.path.join(fullpath, Constants.TRAINING_SUBDIR)
+        os.makedirs(training_subdir)
+        with open(
+            os.path.join(training_subdir, Constants.TRAINING_IN_PROGRESS_LOG), "w"
+        ) as f:
+            f.write("training in progress")
+        mis = ModelInstanceState(fullpath)
+        self.assertEqual(
+            mis.state,
+            ModelInstanceStateNames.TRAINING_IN_PROGRESS,
+            "ModelInstanceState.state should be TRAINING_IN_PROGRESS when training_in_progress_file exists",
         )
 
 

@@ -32,3 +32,4 @@ urllib3_secure_extra==0.1.0
 watchdog==4.0.0
 httpx
 python-multipart
+pyarrow
