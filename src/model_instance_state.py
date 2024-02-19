@@ -6,8 +6,8 @@ from config import Constants
 class ModelInstanceStateNames(Enum):
     DATA_UPLOADED = 1
     TRAINING_IN_PROGRESS = 2
-    MODEL_TRAINED_READY_TO_SERVE = 3  # Final State
-    MODEL_TRAINING_FAILED = 4  # Final State
+    TRAINED_READY_TO_SERVE = 3  # Final State
+    TRAINING_FAILED = 4  # Final State
 
 
 class ModelInstanceState:
@@ -45,9 +45,9 @@ class ModelInstanceState:
         ):
             self.__state = ModelInstanceStateNames.DATA_UPLOADED
         elif os.path.exists(training_subdir) and os.path.exists(model_pickle_file):
-            self.__state = ModelInstanceStateNames.MODEL_TRAINED_READY_TO_SERVE
+            self.__state = ModelInstanceStateNames.TRAINED_READY_TO_SERVE
         elif os.path.exists(training_subdir) and os.path.exists(training_error_file):
-            self.__state = ModelInstanceStateNames.MODEL_TRAINING_FAILED
+            self.__state = ModelInstanceStateNames.TRAINING_FAILED
         elif os.path.exists(training_subdir) and os.path.exists(
             training_in_progress_file
         ):
