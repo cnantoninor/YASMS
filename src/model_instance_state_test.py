@@ -15,6 +15,10 @@ class TestModelInstanceState(unittest.TestCase):
         # Clean up the temporary directory
         self.test_dir.cleanup()
 
+    @classmethod
+    def setup_class(cls):
+        os.remove("app.log")
+
     def test_DATA_UPLOADED_state_dir(self):
         # Test initializing ModelInstanceState with an existing directory
         existent_test_data_dir = (
