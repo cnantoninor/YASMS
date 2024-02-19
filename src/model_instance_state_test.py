@@ -15,10 +15,17 @@ class TestModelInstanceState(unittest.TestCase):
         # Clean up the temporary directory
         self.test_dir.cleanup()
 
-    def test_init_existing_directory(self):
+    def test_DATA_UPLOADED_state_dir(self):
         # Test initializing ModelInstanceState with an existing directory
-        mis = ModelInstanceState(self.test_dir.name)
-        self.assertEqual(mis.directory, self.test_dir.name)
+        existent_test_data_dir = (
+            "test_data/spam_classifier/test_model/test_project/20240219_15-12-42-634770"
+        )
+        mis = ModelInstanceState(existent_test_data_dir)
+        self.assertEqual(mis.directory, existent_test_data_dir)
+        self.assertEqual(mis.state, ModelInstanceStateNames.DATA_UPLOADED)
+        self.assertEqual(mis.task, "spam_classifier")
+        self.assertEqual(mis.type, "test_model")
+        self.assertEqual(mis.project, "test_project")
 
     def test_init_nonexistent_directory(self):
         # Test initializing ModelInstanceState with a non-existing directory
@@ -33,7 +40,7 @@ class TestModelInstanceState(unittest.TestCase):
         with self.assertRaises(NotADirectoryError):
             ModelInstanceState(not_a_dir)
 
-    def test_init_invalid_directory_less_3_parts(self):
+    def test_init_invalid_directory_less_4_parts(self):
         # Test initializing ModelInstanceState with an invalid directory
         with self.assertRaises(ValueError):
             ModelInstanceState("/")
@@ -41,39 +48,49 @@ class TestModelInstanceState(unittest.TestCase):
     def test_properties(self):
         # Test the properties of ModelInstanceState
         mod_instance_name = determine_model_instance_name_date_path()
-        mod_type = "kmeans_123"
-        biz_task = Constants.MODEL_SPAM_TYPE
+        mod_type = "knn_123"
+        biz_task = Constants.BIZ_TASK_SPAM
+        project = "test_project"
         os.makedirs(
-            os.path.join(self.test_dir.name, biz_task, mod_type, mod_instance_name)
+            os.path.join(
+                self.test_dir.name, biz_task, mod_type, project, mod_instance_name
+            )
         )
         fullpath = os.path.join(
-            self.test_dir.name, biz_task, mod_type, mod_instance_name
+            self.test_dir.name, biz_task, mod_type, project, mod_instance_name
         )
 
         mis = ModelInstanceState(fullpath)
-        self.assertEqual(
-            mis.name,
-            mod_type,
-            f"ModelInstanceState.name should return the model name {mod_type}",
-        )
 
         self.assertEqual(
-            mis.type,
+            mis.task,
             biz_task,
             f"ModelInstanceState.type should return the model type {biz_task}",
         )
 
         self.assertEqual(
-            mis.instance_date,
+            mis.type,
+            mod_type,
+            f"ModelInstanceState.name should return the model name {mod_type}",
+        )
+
+        self.assertEqual(
+            mis.instance,
             mod_instance_name,
             f"ModelInstanceState.instance_date should return the model instance date {mod_instance_name}",
+        )
+
+        self.assertEqual(
+            mis.project,
+            project,
+            f"ModelInstanceState.name should return the model name {project}",
         )
 
     def test_determine_state(self):
         # Test the __determine_state method of ModelInstanceState
         mod_instance_name = determine_model_instance_name_date_path()
         mod_type = "kmeans_123"
-        biz_task = Constants.MODEL_SPAM_TYPE
+        biz_task = Constants.BIZ_TASK_SPAM
         os.makedirs(
             os.path.join(self.test_dir.name, biz_task, mod_type, mod_instance_name)
         )

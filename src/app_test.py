@@ -22,7 +22,7 @@ def test_upload_training_data_zipped():
         None
     """
     mod_type = "test_model"
-    biz_task = config.Constants.MODEL_SPAM_TYPE
+    biz_task = config.Constants.BIZ_TASK_SPAM
     project = "test_project"
 
     with open(config.Paths.test_data__upload_train_data_csv, "rb") as file:
@@ -73,7 +73,7 @@ def test_determine_model_instance_name_date_path():
 
 def test_upload_training_data_unzipped():
     mod_type = "test_model"
-    biz_task = config.Constants.MODEL_SPAM_TYPE
+    biz_task = config.Constants.BIZ_TASK_SPAM
     project = "test_project"
 
     with open(config.Paths.test_data__upload_train_data_csv, "rb") as file:

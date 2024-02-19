@@ -42,8 +42,8 @@ class Paths:
 
 @dataclass
 class Constants:
-    MODEL_SPAM_TYPE = "spam_classifier"
-    VALID_MODEL_TYPES = [MODEL_SPAM_TYPE]
+    BIZ_TASK_SPAM = "spam_classifier"
+    VALID_MODEL_TYPES = [BIZ_TASK_SPAM]
     MODEL_DATA_FILE = "model_data.csv"
     TRAINING_IN_PROGRESS_LOG = "training_in_progress.log"
     TRAINING_ERROR_LOG = "training_error.log"

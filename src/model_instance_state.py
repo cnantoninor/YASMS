@@ -6,8 +6,8 @@ from config import Constants
 class ModelInstanceStateNames(Enum):
     DATA_UPLOADED = 1
     TRAINING_IN_PROGRESS = 2
-    MODEL_TRAINED_READY_TO_SERVE = 3 # Final State
-    MODEL_TRAINING_FAILED = 4 # Final State
+    MODEL_TRAINED_READY_TO_SERVE = 3  # Final State
+    MODEL_TRAINING_FAILED = 4  # Final State
 
 
 class ModelInstanceState:
@@ -19,11 +19,14 @@ class ModelInstanceState:
         if not os.path.isdir(self.directory):
             raise NotADirectoryError(f"{self.directory} is not a directory")
         parts = self.directory.split(os.path.sep)
-        if len(parts) < 3:
+        if len(parts) < 4:
             raise ValueError(
-                "Directory path must have at least three parts: {modelType}/{modelName}/{modelInstanceDate}"
+                f"Passed directory path `{self.directory}` must have at least four parts: \
+                    [businessTask]/[modelType]/[project]/[modelInstanceName]"
             )
-        self.__biz_task, self.__mod_type, self.__mod_instance_date = parts[-3:]
+        self.__biz_task, self.__mod_type, self.__project, self.__mod_instance = parts[
+            -4:
+        ]
         self.__state = None
 
     def __determine_state(self):
@@ -59,16 +62,20 @@ class ModelInstanceState:
             raise ValueError(f"Could not determine state for {directory_subtree}")
 
     @property
-    def type(self) -> str:
+    def task(self) -> str:
         return self.__biz_task
 
     @property
-    def name(self) -> str:
+    def type(self) -> str:
         return self.__mod_type
 
     @property
-    def instance_date(self) -> str:
-        return self.__mod_instance_date
+    def instance(self) -> str:
+        return self.__mod_instance
+
+    @property
+    def project(self) -> str:
+        return self.__project
 
     @property
     def state(self) -> ModelInstanceStateNames:

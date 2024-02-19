@@ -3,12 +3,12 @@ import io
 import logging
 import os
 import glob
-from fastapi import FastAPI, File, UploadFile, Form
 import zipfile
-import config
 import shutil
-import pandas as pd
 from typing import List
+import pandas as pd
+from fastapi import FastAPI, File, UploadFile, Form
+import config
 
 logging.info(
     ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> STARTING APP <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
