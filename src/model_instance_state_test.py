@@ -41,26 +41,26 @@ class TestModelInstanceState(unittest.TestCase):
     def test_properties(self):
         # Test the properties of ModelInstanceState
         mod_instance_name = determine_model_instance_name_date_path()
-        mod_name = "kmeans_123"
-        mod_type = Constants.MODEL_SPAM_TYPE
+        mod_type = "kmeans_123"
+        biz_task = Constants.MODEL_SPAM_TYPE
         os.makedirs(
-            os.path.join(self.test_dir.name, mod_type, mod_name, mod_instance_name)
+            os.path.join(self.test_dir.name, biz_task, mod_type, mod_instance_name)
         )
         fullpath = os.path.join(
-            self.test_dir.name, mod_type, mod_name, mod_instance_name
+            self.test_dir.name, biz_task, mod_type, mod_instance_name
         )
 
         mis = ModelInstanceState(fullpath)
         self.assertEqual(
             mis.name,
-            mod_name,
-            f"ModelInstanceState.name should return the model name {mod_name}",
+            mod_type,
+            f"ModelInstanceState.name should return the model name {mod_type}",
         )
 
         self.assertEqual(
             mis.type,
-            mod_type,
-            f"ModelInstanceState.type should return the model type {mod_type}",
+            biz_task,
+            f"ModelInstanceState.type should return the model type {biz_task}",
         )
 
         self.assertEqual(
@@ -72,13 +72,13 @@ class TestModelInstanceState(unittest.TestCase):
     def test_determine_state(self):
         # Test the __determine_state method of ModelInstanceState
         mod_instance_name = determine_model_instance_name_date_path()
-        mod_name = "kmeans_123"
-        mod_type = Constants.MODEL_SPAM_TYPE
+        mod_type = "kmeans_123"
+        biz_task = Constants.MODEL_SPAM_TYPE
         os.makedirs(
-            os.path.join(self.test_dir.name, mod_type, mod_name, mod_instance_name)
+            os.path.join(self.test_dir.name, biz_task, mod_type, mod_instance_name)
         )
         fullpath = os.path.join(
-            self.test_dir.name, mod_type, mod_name, mod_instance_name
+            self.test_dir.name, biz_task, mod_type, mod_instance_name
         )
 
         # Test when the state cannot be determined

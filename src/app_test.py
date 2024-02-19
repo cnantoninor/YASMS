@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 import os
 import zipfile
 import config
-from app import app, determine_model_instance_name_date_path, __check_csv_file
+from app import app, determine_model_instance_name_date_path
 
 client = TestClient(app)
 
@@ -21,8 +21,9 @@ def test_upload_training_data_zipped():
     Returns:
         None
     """
-    mod_name = "test_model"
-    mod_type = config.Constants.MODEL_SPAM_TYPE
+    mod_type = "test_model"
+    biz_task = config.Constants.MODEL_SPAM_TYPE
+    project = "test_project"
 
     with open(config.Paths.test_data__upload_train_data_csv, "rb") as file:
         file_data = file.read()
@@ -35,10 +36,8 @@ def test_upload_training_data_zipped():
     zip_data.seek(0)
 
     response = client.post(
-        "/upload_train_data",
+        f"/models/{biz_task}/{mod_type}/{project}/upload_train_data",
         data={
-            "mod_name": mod_name,
-            "mod_type": mod_type,
             "features_fields": ["Testo"],
             "target_field": "Stato Workflow",
         },
@@ -73,17 +72,16 @@ def test_determine_model_instance_name_date_path():
 
 
 def test_upload_training_data_unzipped():
-    mod_name = "test_model"
-    mod_type = config.Constants.MODEL_SPAM_TYPE
+    mod_type = "test_model"
+    biz_task = config.Constants.MODEL_SPAM_TYPE
+    project = "test_project"
 
     with open(config.Paths.test_data__upload_train_data_csv, "rb") as file:
         file_data = file.read()
 
     response = client.post(
-        "/upload_train_data",
+        f"/models/{biz_task}/{mod_type}/{project}/upload_train_data",
         data={
-            "mod_name": mod_name,
-            "mod_type": mod_type,
             "features_fields": ["Testo"],
             "target_field": "Stato Workflow",
         },

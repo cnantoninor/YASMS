@@ -19,3 +19,6 @@ data/*
 src/app.log
 src/uvicorn.log
 src/uvicorn.err.log
+notebook/.ipynb_checkpoints
+
+app.log

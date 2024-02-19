@@ -6,8 +6,8 @@ from config import Constants
 class ModelInstanceStateNames(Enum):
     DATA_UPLOADED = 1
     TRAINING_IN_PROGRESS = 2
-    MODEL_TRAINED_READY_TO_SERVE = 3
-    MODEL_TRAINING_FAILED = 4
+    MODEL_TRAINED_READY_TO_SERVE = 3 # Final State
+    MODEL_TRAINING_FAILED = 4 # Final State
 
 
 class ModelInstanceState:
@@ -23,7 +23,7 @@ class ModelInstanceState:
             raise ValueError(
                 "Directory path must have at least three parts: {modelType}/{modelName}/{modelInstanceDate}"
             )
-        self.__mod_type, self.__mod_name, self.__mod_instance_date = parts[-3:]
+        self.__biz_task, self.__mod_type, self.__mod_instance_date = parts[-3:]
         self.__state = None
 
     def __determine_state(self):
@@ -60,11 +60,11 @@ class ModelInstanceState:
 
     @property
     def type(self) -> str:
-        return self.__mod_type
+        return self.__biz_task
 
     @property
     def name(self) -> str:
-        return self.__mod_name
+        return self.__mod_type
 
     @property
     def instance_date(self) -> str:

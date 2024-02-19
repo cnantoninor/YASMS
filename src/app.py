@@ -10,37 +10,70 @@ import shutil
 import pandas as pd
 from typing import List
 
-logging.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> STARTING APP <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+logging.info(
+    ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> STARTING APP <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+)
 app = FastAPI()
-logging.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>    STARTED   <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
-@app.post("/upload_train_data")
+
+@app.get("/models")
+async def get_models_state():
+    """
+    Retrieves the state of all the model instances.
+    Torna solo ultima, quella attiva
+
+    Returns:
+        dict: A dictionary containing the state of all the model instances.
+    """
+    pass
+
+
+@app.get("/models/registered_types_and_names")
+async def get_available_biz_task_and_names():
+    """
+    Retrieves the available model types and model names registered in the server.
+
+    Returns:
+        dict: A dictionaries containing the model types and names that are currently available and registered in the server.
+    """
+    pass
+
+
+@app.post("/models/{biz_task}/{mod_type}/{project}/upload_train_data")
 async def upload_train_data(
+    biz_task: str,
+    mod_type: str,
+    project: str,
     train_data: UploadFile = File(...),
-    mod_type: str = Form(...),
-    mod_name: str = Form(...),
     features_fields: List[str] = Form(...),
     target_field: str = Form(...),
 ):
     """
-    Uploads a file to the specified model type and model name directory.
+    Uploads the CSV training data file to the specified model type and model name directory.
 
     Args:
-        train_data (UploadFile): The file to be uploaded.
-        mod_type (str): The type of the model.
-        mod_name (str): The name of the model.
+        train_data (UploadFile): The CSV file to be uploaded.
+        features_fields (List[str]): the list of the fields in the CSV file `train_data` that will be used as features. Existence of fields will be checked.
+        target_field (str): the field in the CSV file `train_data` that will be used as target. Existence of the field will be checked.
+        biz_task (str): The business task, e.g. spam_classifier.
+        mod_type (str): The type of the model, e.g. KNN, SVM, etc..
+        project (str): The name of the project.
 
     Returns:
         dict: A dictionary containing the uploaded train data path.
+
+    Raises:
+        Error if the file is not a CSV or if the file does not contain the required fields.
     """
 
-    assert mod_type in config.Constants.VALID_MODEL_TYPES
+    assert biz_task in config.Constants.VALID_MODEL_TYPES
 
     contents = await train_data.read()
 
     train_data_dir = (
-        config.train_data_path.joinpath(mod_type)
-        .joinpath(mod_name)
+        config.train_data_path.joinpath(biz_task)
+        .joinpath(mod_type)
+        .joinpath(project)
         .joinpath(determine_model_instance_name_date_path())
     )
 
@@ -60,9 +93,12 @@ async def upload_train_data(
     __clean_train_data_dir_if_needed(train_data_dir.parent)
 
     logging.info(
-        "Successfully Uploaded train data for model type {} and model name {} in {}, with features:{} and target:{}",
+        """Successfully Uploaded train data for business task `%s` 
+        and model type `%s` and project `%s`
+        in %s, with features:%s and target:%s""",
+        biz_task,
         mod_type,
-        mod_name,
+        project,
         train_data_dir,
         features_fields,
         target_field,
@@ -119,3 +155,27 @@ def determine_model_instance_name_date_path() -> str:
     now = datetime.now()
     date_time_str = now.strftime("%Y%m%d_%H-%M-%S-%f")
     return date_time_str
+
+
+logging.info(
+    ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>    STARTED   <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+)
+
+
+@app.get("/models/{biz_task}/{mod_type}/{project}/do_inference")
+async def do_inference(
+    biz_task: str,
+    mod_type: str,
+    project: str,
+):
+    """
+    Perform the inference using the specified model type and name.
+
+    Args:
+        biz_task (str): The type of the model.
+        mod_type (str): The name of the model.
+
+    Returns:
+        dict: A dictionary containing the inference results.
+    """
+    pass
