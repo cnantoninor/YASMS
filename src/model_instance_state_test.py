@@ -39,7 +39,7 @@ class TestModelInstanceState(unittest.TestCase):
     def test_init_non_directory(self):
         # Test initializing ModelInstanceState with a non-directory
         not_a_dir = self.test_dir.name + "afile.txt"
-        with open(not_a_dir, "w") as f:
+        with open(not_a_dir, "w", encoding="utf-8") as f:
             f.write("This is not a directory")
         with self.assertRaises(NotADirectoryError):
             ModelInstanceState(not_a_dir)
@@ -123,7 +123,9 @@ class TestModelInstanceState(unittest.TestCase):
             self.assertIn("Could not determine state for", str(cm.exception))
 
         # Test when the dir contains only a model.csv file
-        with open(os.path.join(fullpath, Constants.MODEL_DATA_FILE), "w") as f:
+        with open(
+            os.path.join(fullpath, Constants.MODEL_DATA_FILE), "w", encoding="utf-8"
+        ) as f:
             f.write("model data")
         mis = ModelInstanceState(fullpath)
         self.assert_mis_properties(mod_instance_name, mod_type, biz_task, project, mis)
