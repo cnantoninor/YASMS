@@ -1,9 +1,9 @@
 import unittest
 import os
 import tempfile
-from model_instance_state import ModelInstanceState, ModelInstanceStateNames
+from model_instance_state import ModelInstanceState, ModelInstanceStateEnum
 from app import determine_model_instance_name_date_path
-from config import Constants
+from config import Constants, Paths
 
 
 class TestModelInstanceState(unittest.TestCase):
@@ -20,13 +20,10 @@ class TestModelInstanceState(unittest.TestCase):
         os.remove("app.log")
 
     def test_DATA_UPLOADED_state_dir(self):
-        # Test initializing ModelInstanceState with an existing directory
-        existent_test_data_dir = (
-            "test_data/spam_classifier/test_model/test_project/20240219_15-12-42-634770"
-        )
-        mis = ModelInstanceState(existent_test_data_dir)
-        self.assertEqual(mis.directory, existent_test_data_dir)
-        self.assertEqual(mis.state, ModelInstanceStateNames.DATA_UPLOADED)
+        data_uploaded_dir = Paths.test_data__data_uploaded_dir.as_posix()
+        mis = ModelInstanceState(data_uploaded_dir)
+        self.assertEqual(mis.directory, data_uploaded_dir)
+        self.assertEqual(mis.state, ModelInstanceStateEnum.DATA_UPLOADED)
         self.assertEqual(mis.task, "spam_classifier")
         self.assertEqual(mis.type, "test_model")
         self.assertEqual(mis.project, "test_project")
@@ -101,6 +98,20 @@ class TestModelInstanceState(unittest.TestCase):
             f"ModelInstanceState.name should return the project name: {project}",
         )
 
+    def test_from_train_directory(self):
+        # Test the from_train_directory method of ModelInstanceState
+        mod_instance_name = determine_model_instance_name_date_path()
+        mod_type = "knn_123"
+        biz_task = Constants.BIZ_TASK_SPAM
+        project = "test_project"
+        train_dir = os.path.join(
+            self.test_dir.name, biz_task, mod_type, project, mod_instance_name
+        )
+        os.makedirs(train_dir)
+
+        mis = ModelInstanceState.from_train_directory(train_dir)
+        self.assert_mis_properties(mod_instance_name, mod_type, biz_task, project, mis)
+
     def test_determine_state(self):
         # Test the __determine_state method of ModelInstanceState
         biz_task = Constants.BIZ_TASK_SPAM
@@ -131,7 +142,7 @@ class TestModelInstanceState(unittest.TestCase):
         self.assert_mis_properties(mod_instance_name, mod_type, biz_task, project, mis)
         self.assertEqual(
             mis.state,
-            ModelInstanceStateNames.DATA_UPLOADED,
+            ModelInstanceStateEnum.DATA_UPLOADED,
             f"ModelInstanceState.state should be \
                 DATA_UPLOADED when {Constants.MODEL_DATA_FILE} exists",
         )
@@ -149,7 +160,7 @@ class TestModelInstanceState(unittest.TestCase):
         self.assert_mis_properties(mod_instance_name, mod_type, biz_task, project, mis)
         self.assertEqual(
             mis.state,
-            ModelInstanceStateNames.TRAINING_IN_PROGRESS,
+            ModelInstanceStateEnum.TRAINING_IN_PROGRESS,
             "ModelInstanceState.state should be TRAINING_IN_PROGRESS \
                 when training_in_progress_file exists",
         )
@@ -165,7 +176,7 @@ class TestModelInstanceState(unittest.TestCase):
         self.assert_mis_properties(mod_instance_name, mod_type, biz_task, project, mis)
         self.assertEqual(
             mis.state,
-            ModelInstanceStateNames.TRAINED_READY_TO_SERVE,
+            ModelInstanceStateEnum.TRAINED_READY_TO_SERVE,
             "ModelInstanceState.state should be TRAINED_READY_TO_SERVE \
                 when TRAINED_MODEL_FILE file exists",
         )
@@ -182,7 +193,7 @@ class TestModelInstanceState(unittest.TestCase):
         self.assert_mis_properties(mod_instance_name, mod_type, biz_task, project, mis)
         self.assertEqual(
             mis.state,
-            ModelInstanceStateNames.TRAINING_FAILED,
+            ModelInstanceStateEnum.TRAINING_FAILED,
             "ModelInstanceState.state should be TRAINING_FAILED \
                 when TRAINING_ERROR_LOG file exists",
         )

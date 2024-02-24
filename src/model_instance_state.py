@@ -1,9 +1,10 @@
 from enum import Enum
 import os
 from config import Constants
+import logging
 
 
-class ModelInstanceStateNames(Enum):
+class ModelInstanceStateEnum(Enum):
     DATA_UPLOADED = 1
     TRAINING_IN_PROGRESS = 2
     TRAINED_READY_TO_SERVE = 3  # Final State
@@ -11,6 +12,24 @@ class ModelInstanceStateNames(Enum):
 
 
 class ModelInstanceState:
+
+    @staticmethod
+    def from_train_directory(directory: str) -> list:
+        model_instance_dirs = []
+        model_instances = []
+        for root, dirs, files in os.walk(directory):
+            if len(dirs) == 4:
+                model_instance_dirs.append(root)
+        for midir in model_instance_dirs:
+            try:
+                model_instances.append(ModelInstanceState(midir))
+            except Exception as e:
+                logging.error(
+                    "Skipping dir `%s` due to error creating ModelInstanceState: %s",
+                    midir,
+                    e,
+                )
+        return model_instances
 
     def __init__(self, directory: str):
         self.directory = directory
@@ -43,15 +62,15 @@ class ModelInstanceState:
         if not os.path.exists(training_subdir) and os.path.exists(
             os.path.join(self.directory, Constants.MODEL_DATA_FILE)
         ):
-            self.__state = ModelInstanceStateNames.DATA_UPLOADED
+            self.__state = ModelInstanceStateEnum.DATA_UPLOADED
         elif os.path.exists(training_subdir) and os.path.exists(model_pickle_file):
-            self.__state = ModelInstanceStateNames.TRAINED_READY_TO_SERVE
+            self.__state = ModelInstanceStateEnum.TRAINED_READY_TO_SERVE
         elif os.path.exists(training_subdir) and os.path.exists(training_error_file):
-            self.__state = ModelInstanceStateNames.TRAINING_FAILED
+            self.__state = ModelInstanceStateEnum.TRAINING_FAILED
         elif os.path.exists(training_subdir) and os.path.exists(
             training_in_progress_file
         ):
-            self.__state = ModelInstanceStateNames.TRAINING_IN_PROGRESS
+            self.__state = ModelInstanceStateEnum.TRAINING_IN_PROGRESS
             # todo add timed out state check
         else:
             directory_subtree = ""
@@ -78,7 +97,7 @@ class ModelInstanceState:
         return self.__project
 
     @property
-    def state(self) -> ModelInstanceStateNames:
+    def state(self) -> ModelInstanceStateEnum:
         if self.__state is None:
             self.__determine_state()
         return self.__state

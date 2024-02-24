@@ -1,26 +1,23 @@
 import time
 import unittest
 from unittest.mock import patch
-from task_manager import Task, TrainingTask, TasksQueue, Subscriber
+from task_manager import Task, TasksQueue, Subscriber
+from trainer import TrainingTask
 
 
 class DummyTask(Task):
+
     def execute(self):
+        pass
+
+    def _check_state(self):
         pass
 
 
 class TestTask(unittest.TestCase):
     def test_task_name(self):
-        task = DummyTask("TestTask")
+        task = DummyTask("TestTask", None)
         self.assertEqual(task.name, "TestTask")
-
-
-class TestTrainingTask(unittest.TestCase):
-    def test_execute(self):
-        task = TrainingTask("TestTrainingTask")
-        with patch("logging.info") as mocked_log:
-            task.execute()
-            mocked_log.assert_called_once()
 
 
 class TestTasksQueue(unittest.TestCase):
@@ -39,12 +36,17 @@ class TestTasksQueue(unittest.TestCase):
         tasks_queue.submit(task)
         self.assertEqual(tasks_queue.size, 1)
 
+    def test_singleton(self):
+        tasks_queue_1 = TasksQueue()
+        tasks_queue_2 = TasksQueue()
+        self.assertEqual(tasks_queue_1, tasks_queue_2)
+
 
 class TestSubscriber(unittest.TestCase):
     def test_run(self):
         tasks_queue = TasksQueue()
         self.assertEqual(tasks_queue.size, 0)
-        task = DummyTask("dummy_task")
+        task = DummyTask("dummy_task", None)
         with patch("logging.info") as mocked_log:
             tasks_queue.submit(task)
             self.assertEqual(tasks_queue.size, 1)

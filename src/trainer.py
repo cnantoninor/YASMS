@@ -1,7 +1,16 @@
 import logging
+from model_instance_state import ModelInstanceStateEnum
+
+from task_manager import Task
 
 
-class Trainer:
-    def __init__(self, train_dir: str) -> None:
-        self.train_dir = train_dir
-        self.logger = logging.getLogger(__name__)
+class TrainingTask(Task):
+
+    def execute(self):
+        logging.info("Executing training task %s", self)
+
+    def _check_state(self):
+        if self.model_instance_state.state != ModelInstanceStateEnum.DATA_UPLOADED:
+            raise ValueError(
+                f"Training task can only be executed when model instance state is DATA_UPLOADED, but it is {self.model_instance_state.state}"
+            )

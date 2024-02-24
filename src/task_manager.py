@@ -3,30 +3,72 @@ import threading
 import logging
 import time
 from abc import ABC, abstractmethod
+from model_instance_state import ModelInstanceState
 
 
 class Task(ABC):
-    def __init__(self, name):
+    """
+    Abstract base class representing a task.
+
+    Attributes:
+        name (str): The name of the task.
+        model_instance_state (ModelInstanceState): The state of the model instance associated with the task.
+    """
+
+    def __init__(self, name, model_instance_state):
         self._name = name
+        self._model_instance_state = model_instance_state
+        self._check_state()
 
     @property
     def name(self):
+        """
+        Get the name of the task.
+
+        Returns:
+            str: The name of the task.
+        """
         return self._name
+
+    @property
+    def model_instance_state(self) -> ModelInstanceState:
+        """
+        Get the state of the model instance associated with the task.
+
+        Returns:
+            ModelInstanceState: The state of the model instance.
+        """
+        return self._model_instance_state
 
     @abstractmethod
     def execute(self):
+        """
+        Execute the task.
+        """
+        pass
+
+    @abstractmethod
+    def _check_state(self):
+        """
+        Check the state of the task.
+        Subclasses should Raise ValueError if the state is not valid for the task.
+        """
         pass
 
     def __str__(self):
         return f"{self.__class__.__name__}::{self.name}"
 
 
-class TrainingTask(Task):
-    def execute(self):
-        logging.info("Executing training task %s", self)
-
-
 class TasksQueue:
+
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        """Singleton class to manage the tasks queue"""
+        if not isinstance(cls._instance, cls):
+            cls._instance = super(TasksQueue, cls).__new__(cls, *args, **kwargs)
+        return cls._instance
+
     def __init__(self):
         self.tasks = queue.Queue(maxsize=0)
 
@@ -63,6 +105,4 @@ class Subscriber:
             finally:
                 # free the thread resource from eventual poisoned tasks
                 self.tasks_queue.tasks.task_done()
-                logging.info(
-                    "Remaining tasks in queue: %s", self.tasks_queue.size
-                )
+                logging.info("Remaining tasks in queue: %s", self.tasks_queue.size)

@@ -20,7 +20,7 @@ app = FastAPI()
 async def get_models_state():
     """
     Retrieves the state of all the model instances.
-    Torna solo ultima, quella attiva
+    Torna solo ultima o quella attiva
 
     Returns:
         dict: A dictionary containing the state of all the model instances.
