@@ -2,7 +2,6 @@ import time
 import unittest
 from unittest.mock import patch
 from task_manager import Task, TasksQueue, Subscriber
-from trainer import TrainingTask
 
 
 class DummyTask(Task):
@@ -23,7 +22,7 @@ class TestTask(unittest.TestCase):
 class TestTasksQueue(unittest.TestCase):
     def test_publish(self):
         tasks_queue = TasksQueue()
-        task = TrainingTask("TestTrainingTask")
+        task = DummyTask("TestTrainingTask", None)
         with patch("logging.info") as mocked_log:
             tasks_queue.submit(task)
             self.assertEqual(tasks_queue.size, 1)
@@ -32,7 +31,7 @@ class TestTasksQueue(unittest.TestCase):
     def test_size(self):
         tasks_queue = TasksQueue()
         self.assertEqual(tasks_queue.size, 0)
-        task = TrainingTask("TestTrainingTask")
+        task = DummyTask("TestTrainingTask", None)
         tasks_queue.submit(task)
         self.assertEqual(tasks_queue.size, 1)
 

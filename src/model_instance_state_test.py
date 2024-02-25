@@ -3,13 +3,23 @@ import os
 import tempfile
 from model_instance_state import ModelInstanceState, ModelInstanceStateEnum
 from app import determine_model_instance_name_date_path
-from config import Constants, Paths
+from config import Constants
+from test_utils import (
+    data_uploaded_mis_and_dir,
+    trained_ready_to_serve_mis_and_dir,
+    training_failed_mis_and_dir,
+    training_in_progress_mis_and_dir,
+    test_data__invalid_path,
+)
 
 
 class TestModelInstanceState(unittest.TestCase):
     def setUp(self):
-        # Create a temporary directory for testing
         self.test_dir = tempfile.TemporaryDirectory()
+        self.biz_task = Constants.BIZ_TASK_SPAM
+        self.mod_type = "test_model"
+        self.project = "test_project"
+
 
     def tearDown(self):
         # Clean up the temporary directory
@@ -19,9 +29,8 @@ class TestModelInstanceState(unittest.TestCase):
     def setup_class(cls):
         os.remove("app.log")
 
-    def test_DATA_UPLOADED_state_dir(self):
-        data_uploaded_dir = Paths.test_data__data_uploaded_dir.as_posix()
-        mis = ModelInstanceState(data_uploaded_dir)
+    def test_data_uploaded_state_dir(self):
+        mis, data_uploaded_dir = data_uploaded_mis_and_dir()
         self.assertEqual(mis.directory, data_uploaded_dir)
         self.assertEqual(mis.state, ModelInstanceStateEnum.DATA_UPLOADED)
         self.assertEqual(mis.task, "spam_classifier")
@@ -63,14 +72,14 @@ class TestModelInstanceState(unittest.TestCase):
 
         mis = ModelInstanceState(fullpath)
 
-        self.assert_mis_properties(mod_instance_name, mod_type, biz_task, project, mis)
+        self.assert_mis_properties(biz_task, mod_type, project, mod_instance_name, mis)
 
     def assert_mis_properties(
         self,
-        mod_instance_name: str,
-        mod_type: str,
         biz_task: str,
-        project,
+        mod_type: str,
+        project: str,
+        instance: str,
         mis: ModelInstanceState,
     ):
         self.assertEqual(
@@ -82,14 +91,14 @@ class TestModelInstanceState(unittest.TestCase):
         self.assertEqual(
             mis.type,
             mod_type,
-            f"ModelInstanceState.name should return the model type: {mod_type}",
+            f"ModelInstanceState.type should return the model type: {mod_type}",
         )
 
         self.assertEqual(
             mis.instance,
-            mod_instance_name,
+            instance,
             f"ModelInstanceState.instance_date should return \
-                the model instance name: {mod_instance_name}",
+                the model instance name: {instance}",
         )
 
         self.assertEqual(
@@ -98,48 +107,17 @@ class TestModelInstanceState(unittest.TestCase):
             f"ModelInstanceState.name should return the project name: {project}",
         )
 
-    def test_from_train_directory(self):
-        # Test the from_train_directory method of ModelInstanceState
-        mod_instance_name = determine_model_instance_name_date_path()
-        mod_type = "knn_123"
-        biz_task = Constants.BIZ_TASK_SPAM
-        project = "test_project"
-        train_dir = os.path.join(
-            self.test_dir.name, biz_task, mod_type, project, mod_instance_name
-        )
-        os.makedirs(train_dir)
-
-        mis = ModelInstanceState.from_train_directory(train_dir)
-        self.assert_mis_properties(mod_instance_name, mod_type, biz_task, project, mis)
-
-    def test_determine_state(self):
-        # Test the __determine_state method of ModelInstanceState
-        biz_task = Constants.BIZ_TASK_SPAM
-        mod_type = "kmeans_123"
-        project = "test_project"
-        mod_instance_name = determine_model_instance_name_date_path()
-
-        os.makedirs(
-            os.path.join(
-                self.test_dir.name, biz_task, mod_type, project, mod_instance_name
-            )
-        )
-        fullpath = os.path.join(
-            self.test_dir.name, biz_task, mod_type, project, mod_instance_name
-        )
-
+    def test_determine_state_when_state_cannot_be_determined(self):
         # Test when the state cannot be determined
         with self.assertRaises(ValueError) as cm:
-            _ = ModelInstanceState(fullpath).state
+            ModelInstanceState(test_data__invalid_path.as_posix()).state
             self.assertIn("Could not determine state for", str(cm.exception))
 
-        # Test when the dir contains only a model.csv file
-        with open(
-            os.path.join(fullpath, Constants.MODEL_DATA_FILE), "w", encoding="utf-8"
-        ) as f:
-            f.write("model data")
-        mis = ModelInstanceState(fullpath)
-        self.assert_mis_properties(mod_instance_name, mod_type, biz_task, project, mis)
+    def test_determine_state_when_data_uploaded(self):
+        # Test DATA_UPLOADED: when the dir contains only a model.csv file
+        mod_instance_name = ModelInstanceStateEnum.DATA_UPLOADED.name
+        mis, _ = data_uploaded_mis_and_dir()
+        self.assert_mis_properties(self.biz_task, self.mod_type, self.project, mod_instance_name, mis)
         self.assertEqual(
             mis.state,
             ModelInstanceStateEnum.DATA_UPLOADED,
@@ -147,17 +125,11 @@ class TestModelInstanceState(unittest.TestCase):
                 DATA_UPLOADED when {Constants.MODEL_DATA_FILE} exists",
         )
 
-        # Test when the dir contains also a training subdir and the training_in_progress_file
-        training_subdir = os.path.join(fullpath, Constants.TRAINING_SUBDIR)
-        os.makedirs(training_subdir)
-        with open(
-            os.path.join(training_subdir, Constants.TRAINING_IN_PROGRESS_LOG),
-            "w",
-            encoding="utf-8",
-        ) as f:
-            f.write("training in progress")
-        mis = ModelInstanceState(fullpath)
-        self.assert_mis_properties(mod_instance_name, mod_type, biz_task, project, mis)
+    def test_determine_state_when_training_in_progress(self):
+        # Test TRAINING_IN_PROGRESS: when the dir contains also a training subdir and the training_in_progress_file
+        mod_instance_name = ModelInstanceStateEnum.TRAINING_IN_PROGRESS.name
+        mis, _ = training_in_progress_mis_and_dir()
+        self.assert_mis_properties(self.biz_task, self.mod_type, self.project, mod_instance_name, mis)
         self.assertEqual(
             mis.state,
             ModelInstanceStateEnum.TRAINING_IN_PROGRESS,
@@ -165,15 +137,11 @@ class TestModelInstanceState(unittest.TestCase):
                 when training_in_progress_file exists",
         )
 
-        # Test when the dir contains the pickle model file and NOT the error file
-        with open(
-            os.path.join(training_subdir, Constants.TRAINED_MODEL_FILE),
-            "w",
-            encoding="utf-8",
-        ) as f:
-            f.write("trained model")
-        mis = ModelInstanceState(fullpath)
-        self.assert_mis_properties(mod_instance_name, mod_type, biz_task, project, mis)
+    def test_determine_state_when_trained_ready_to_serve(self):
+        # Test TRAINED_READY_TO_SERVE: when the dir contains the pickle model file and NOT the error file
+        mod_instance_name = ModelInstanceStateEnum.TRAINED_READY_TO_SERVE.name
+        mis, _ = trained_ready_to_serve_mis_and_dir()
+        self.assert_mis_properties(self.biz_task, self.mod_type, self.project, mod_instance_name, mis)
         self.assertEqual(
             mis.state,
             ModelInstanceStateEnum.TRAINED_READY_TO_SERVE,
@@ -181,16 +149,11 @@ class TestModelInstanceState(unittest.TestCase):
                 when TRAINED_MODEL_FILE file exists",
         )
 
-        # Test when the dir contains training error log file AND NOT the pickle model file
-        os.remove(os.path.join(training_subdir, Constants.TRAINED_MODEL_FILE))
-        with open(
-            os.path.join(training_subdir, Constants.TRAINING_ERROR_LOG),
-            "w",
-            encoding="utf-8",
-        ) as f:
-            f.write("training error")
-        mis = ModelInstanceState(fullpath)
-        self.assert_mis_properties(mod_instance_name, mod_type, biz_task, project, mis)
+    def test_determine_state_when_training_failed(self):
+        # Test TRAINING_FAILED: when the dir contains training error log file AND NOT the pickle model file
+        mod_instance_name = ModelInstanceStateEnum.TRAINING_FAILED.name
+        mis, _ = training_failed_mis_and_dir()
+        self.assert_mis_properties(self.biz_task, self.mod_type, self.project, mod_instance_name, mis)
         self.assertEqual(
             mis.state,
             ModelInstanceStateEnum.TRAINING_FAILED,

@@ -25,7 +25,7 @@ def test_upload_training_data_zipped():
     biz_task = config.Constants.BIZ_TASK_SPAM
     project = "test_project"
 
-    with open(config.Paths.test_data__upload_train_data_csv, "rb") as file:
+    with open(config.Paths.test_data__upload_train_data_csv_path, "rb") as file:
         file_data = file.read()
 
     zip_data = io.BytesIO()
@@ -76,7 +76,7 @@ def test_upload_training_data_unzipped():
     biz_task = config.Constants.BIZ_TASK_SPAM
     project = "test_project"
 
-    with open(config.Paths.test_data__upload_train_data_csv, "rb") as file:
+    with open(config.Paths.test_data__upload_train_data_csv_path, "rb") as file:
         file_data = file.read()
 
     response = client.post(

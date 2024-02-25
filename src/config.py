@@ -31,29 +31,18 @@ test_data_path: Path = root_path / "test_data"
 
 @dataclass
 class Paths:
-    testnino1_classification_task: Path = (
+    testnino1_classification_task_path: Path = (
         data_path / "wl_classif_testnino1/TESTNINO1.csv"
     )
 
-    testnino1_classification_task_refined: Path = (
+    testnino1_classification_task_refined_path: Path = (
         data_path / "wl_classif_testnino1/TESTNINO1_without_StatoWorkflow_N.csv"
     )
-    test_data__upload_train_data_csv: Path = test_data_path / "upload_train_data.csv"
-    test_data__invalid_dir: Path = (
+    test_data__upload_train_data_csv_path: Path = (
+        test_data_path / "upload_train_data.csv"
+    )
+    test_data__invalid_path: Path = (
         test_data_path / "spam_classifier/test_model/test_project/INVALID"
-    )
-    test_data__data_uploaded_dir: Path = (
-        test_data_path / "spam_classifier/test_model/test_project/DATA_UPLOADED"
-    )
-    test_data__training_in_progress_dir: Path = (
-        test_data_path / "spam_classifier/test_model/test_project/TRAINING_IN_PROGRESS"
-    )
-    test_data__ready_to_serve_dir: Path = (
-        test_data_path
-        / "spam_classifier/test_model/test_project/TRAINED_READY_TO_SERVE"
-    )
-    test_data__training_failed_dir: Path = (
-        test_data_path / "spam_classifier/test_model/test_project/TRAINING_FAILED"
     )
 
 

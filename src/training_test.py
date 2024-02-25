@@ -1,14 +1,13 @@
 import unittest
-from unittest.mock import Mock, patch
-from model_instance_state import ModelInstanceState, ModelInstanceStateEnum
+from unittest.mock import patch
+from test_utils import data_uploaded_mis_and_dir
 from trainer import TrainingTask
-from config import Paths
 
 
 class TestTrainingTask(unittest.TestCase):
 
     def setUp(self):
-        mis = ModelInstanceState(Paths.test_data__data_uploaded_dir.as_posix())
+        mis, _ = data_uploaded_mis_and_dir()
         self.task = TrainingTask("TestTrainingTask", mis)
 
     @patch("trainer.logging")
@@ -25,10 +24,9 @@ class TestTrainingTask(unittest.TestCase):
             self.fail("_check_state() raised ValueError unexpectedly!")
 
     def test_check_state_not_data_uploaded(self):
-        self.task.model_instance_state = Mock(spec=ModelInstanceState)
-        self.task.model_instance_state.state = (
-            ModelInstanceStateEnum.TRAINING_IN_PROGRESS
-        )
+
+        # todo from here
+
         with self.assertRaises(ValueError):
             self.task._check_state()
 

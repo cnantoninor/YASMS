@@ -17,7 +17,7 @@ class ModelInstanceState:
     def from_train_directory(directory: str) -> list:
         model_instance_dirs = []
         model_instances = []
-        for root, dirs, files in os.walk(directory):
+        for root, dirs, _ in os.walk(directory):
             if len(dirs) == 4:
                 model_instance_dirs.append(root)
         for midir in model_instance_dirs:
@@ -74,7 +74,7 @@ class ModelInstanceState:
             # todo add timed out state check
         else:
             directory_subtree = ""
-            for root, dirs, files in os.walk(self.directory):
+            for root, _, files in os.walk(self.directory):
                 directory_subtree += f"{root}\n"
                 for file in files:
                     directory_subtree += f"  - {file}\n"
