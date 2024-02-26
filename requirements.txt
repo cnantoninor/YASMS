@@ -33,3 +33,4 @@ httpx
 python-multipart
 pyarrow
 uvicorn
+coverage
