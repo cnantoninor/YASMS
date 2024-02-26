@@ -15,7 +15,10 @@ LOG_ROTATION_INTERVAL = 10  # Number of log files before rotation
 # Create a handler that rotates log files when they reach a certain size
 log_handler = RotatingFileHandler(LOG_FILE, maxBytes=10_000_000, backupCount=10)
 
-log_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+LOG_FORMAT = (
+    "%(asctime)s [%(levelname)s] [%(threadName)s] [%(filename)s:%(lineno)d] %(message)s"
+)
+log_handler.setFormatter(logging.Formatter(LOG_FORMAT))
 log_handler.setLevel(logging.INFO)
 
 logger = logging.getLogger()

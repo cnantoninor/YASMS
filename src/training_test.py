@@ -1,6 +1,9 @@
+# pylint: disable=protected-access
+
 import unittest
 from unittest.mock import patch
-from test_utils import data_uploaded_mis_and_dir
+from model_instance_state import ModelInstanceState
+from test_utils import data_uploaded_mis_and_dir, test_data__invalid_path
 from trainer import TrainingTask
 
 
@@ -8,7 +11,7 @@ class TestTrainingTask(unittest.TestCase):
 
     def setUp(self):
         mis, _ = data_uploaded_mis_and_dir()
-        self.task = TrainingTask("TestTrainingTask", mis)
+        self.task = TrainingTask(mis)
 
     @patch("trainer.logging")
     def test_execute(self, mock_logging):
@@ -24,11 +27,10 @@ class TestTrainingTask(unittest.TestCase):
             self.fail("_check_state() raised ValueError unexpectedly!")
 
     def test_check_state_not_data_uploaded(self):
-
-        # todo from here
-
         with self.assertRaises(ValueError):
-            self.task._check_state()
+            self.task = TrainingTask(
+                ModelInstanceState(test_data__invalid_path.as_posix()),
+            )
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import time
 import unittest
 from unittest.mock import patch
-from task_manager import Task, TasksQueue, Subscriber
+from task_manager import Task, TasksQueue, TasksExecutor
 
 
 class DummyTask(Task):
@@ -49,7 +49,7 @@ class TestSubscriber(unittest.TestCase):
         with patch("logging.info") as mocked_log:
             tasks_queue.submit(task)
             self.assertEqual(tasks_queue.size, 1)
-            _ = Subscriber(tasks_queue)
+            TasksExecutor()
             time.sleep(0.2)
             self.assertEqual(tasks_queue.size, 0)
             mocked_log.assert_any_call("Adding task to queue: `%s`", task)

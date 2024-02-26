@@ -2,8 +2,7 @@ import unittest
 import os
 import tempfile
 from model_instance_state import ModelInstanceState, ModelInstanceStateEnum
-from app import determine_model_instance_name_date_path
-from config import Constants
+from config import Constants, test_data_path
 from test_utils import (
     data_uploaded_mis_and_dir,
     trained_ready_to_serve_mis_and_dir,
@@ -19,7 +18,6 @@ class TestModelInstanceState(unittest.TestCase):
         self.biz_task = Constants.BIZ_TASK_SPAM
         self.mod_type = "test_model"
         self.project = "test_project"
-
 
     def tearDown(self):
         # Clean up the temporary directory
@@ -54,25 +52,6 @@ class TestModelInstanceState(unittest.TestCase):
         # Test initializing ModelInstanceState with an invalid directory
         with self.assertRaises(ValueError):
             ModelInstanceState("/")
-
-    def test_properties(self):
-        # Test the properties of ModelInstanceState
-        mod_instance_name = determine_model_instance_name_date_path()
-        mod_type = "knn_123"
-        biz_task = Constants.BIZ_TASK_SPAM
-        project = "test_project"
-        os.makedirs(
-            os.path.join(
-                self.test_dir.name, biz_task, mod_type, project, mod_instance_name
-            )
-        )
-        fullpath = os.path.join(
-            self.test_dir.name, biz_task, mod_type, project, mod_instance_name
-        )
-
-        mis = ModelInstanceState(fullpath)
-
-        self.assert_mis_properties(biz_task, mod_type, project, mod_instance_name, mis)
 
     def assert_mis_properties(
         self,
@@ -110,14 +89,16 @@ class TestModelInstanceState(unittest.TestCase):
     def test_determine_state_when_state_cannot_be_determined(self):
         # Test when the state cannot be determined
         with self.assertRaises(ValueError) as cm:
-            ModelInstanceState(test_data__invalid_path.as_posix()).state
+            _ = ModelInstanceState(test_data__invalid_path.as_posix()).state
             self.assertIn("Could not determine state for", str(cm.exception))
 
     def test_determine_state_when_data_uploaded(self):
         # Test DATA_UPLOADED: when the dir contains only a model.csv file
         mod_instance_name = ModelInstanceStateEnum.DATA_UPLOADED.name
         mis, _ = data_uploaded_mis_and_dir()
-        self.assert_mis_properties(self.biz_task, self.mod_type, self.project, mod_instance_name, mis)
+        self.assert_mis_properties(
+            self.biz_task, self.mod_type, self.project, mod_instance_name, mis
+        )
         self.assertEqual(
             mis.state,
             ModelInstanceStateEnum.DATA_UPLOADED,
@@ -129,7 +110,9 @@ class TestModelInstanceState(unittest.TestCase):
         # Test TRAINING_IN_PROGRESS: when the dir contains also a training subdir and the training_in_progress_file
         mod_instance_name = ModelInstanceStateEnum.TRAINING_IN_PROGRESS.name
         mis, _ = training_in_progress_mis_and_dir()
-        self.assert_mis_properties(self.biz_task, self.mod_type, self.project, mod_instance_name, mis)
+        self.assert_mis_properties(
+            self.biz_task, self.mod_type, self.project, mod_instance_name, mis
+        )
         self.assertEqual(
             mis.state,
             ModelInstanceStateEnum.TRAINING_IN_PROGRESS,
@@ -141,7 +124,9 @@ class TestModelInstanceState(unittest.TestCase):
         # Test TRAINED_READY_TO_SERVE: when the dir contains the pickle model file and NOT the error file
         mod_instance_name = ModelInstanceStateEnum.TRAINED_READY_TO_SERVE.name
         mis, _ = trained_ready_to_serve_mis_and_dir()
-        self.assert_mis_properties(self.biz_task, self.mod_type, self.project, mod_instance_name, mis)
+        self.assert_mis_properties(
+            self.biz_task, self.mod_type, self.project, mod_instance_name, mis
+        )
         self.assertEqual(
             mis.state,
             ModelInstanceStateEnum.TRAINED_READY_TO_SERVE,
@@ -153,13 +138,54 @@ class TestModelInstanceState(unittest.TestCase):
         # Test TRAINING_FAILED: when the dir contains training error log file AND NOT the pickle model file
         mod_instance_name = ModelInstanceStateEnum.TRAINING_FAILED.name
         mis, _ = training_failed_mis_and_dir()
-        self.assert_mis_properties(self.biz_task, self.mod_type, self.project, mod_instance_name, mis)
+        self.assert_mis_properties(
+            self.biz_task, self.mod_type, self.project, mod_instance_name, mis
+        )
         self.assertEqual(
             mis.state,
             ModelInstanceStateEnum.TRAINING_FAILED,
             "ModelInstanceState.state should be TRAINING_FAILED \
                 when TRAINING_ERROR_LOG file exists",
         )
+
+    def test_from_train_directory__invalid_should_raise_file_not_found(self):
+        # Test from_train_directory when the directory does not exist
+        with self.assertRaises(FileNotFoundError):
+            ModelInstanceState.from_train_directory("/sdfsdfdsf")
+
+    def test_from_train_directory(self):
+        # Test from_train_directory when the directory is a training directory
+        mis_list = ModelInstanceState.from_train_directory(test_data_path.as_posix())
+
+        self.assertEqual(
+            len(mis_list),
+            4,
+            "ModelInstanceState.from_train_directory should return 4 model instances",
+        )
+
+        # self.assertEqual(
+        #     mis_list[0].state,
+        #     ModelInstanceStateEnum.DATA_UPLOADED,
+        #     "ModelInstanceState.state should be DATA_UPLOADED",
+        # )
+
+        # self.assertEqual(
+        #     mis_list[1].state,
+        #     ModelInstanceStateEnum.TRAINING_IN_PROGRESS,
+        #     "ModelInstanceState.state should be TRAINING_IN_PROGRESS",
+        # )
+
+        # self.assertEqual(
+        #     mis_list[2].state,
+        #     ModelInstanceStateEnum.TRAINED_READY_TO_SERVE,
+        #     "ModelInstanceState.state should be TRAINED_READY_TO_SERVE",
+        # )
+
+        # self.assertEqual(
+        #     mis_list[3].state,
+        #     ModelInstanceStateEnum.TRAINING_FAILED,
+        #     "ModelInstanceState.state should be TRAINING_FAILED",
+        # )
 
 
 if __name__ == "__main__":

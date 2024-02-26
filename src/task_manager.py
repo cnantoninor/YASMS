@@ -84,8 +84,17 @@ class TasksQueue:
         return self.tasks.qsize()
 
 
-class Subscriber:
-    def __init__(self, tasks_queue: TasksQueue):
+class TasksExecutor:
+
+    # make TasksExecutor a singleton
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not isinstance(cls._instance, cls):
+            cls._instance = super(TasksExecutor, cls).__new__(cls, *args, **kwargs)
+        return cls._instance
+
+    def __init__(self, tasks_queue: TasksQueue = TasksQueue()):
         self.tasks_queue = tasks_queue
         self.thread = threading.Thread(target=self.run)
         self.thread.daemon = True

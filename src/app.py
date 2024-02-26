@@ -9,11 +9,37 @@ from typing import List
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, Form
 import config
+from model_instance_state import ModelInstanceState, ModelInstanceStateEnum
+from task_manager import TasksExecutor, TasksQueue
+from trainer import TrainingTask
 
 logging.info(
     ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> STARTING APP <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 )
+
+logging.info(
+    "Creating TrainingTask(s) from ModelInstanceState instances in train data dir: %s...",
+    config.train_data_path,
+)
+list_mis = ModelInstanceState.from_train_directory(config.train_data_path.as_posix())
+for mis in list_mis:
+    if (
+        mis.state == ModelInstanceStateEnum.DATA_UPLOADED
+        or mis.state == ModelInstanceStateEnum.TRAINING_IN_PROGRESS
+    ):
+        logging.info("Creating training task for ModelInstanceState: %s", mis)
+        training_task = TrainingTask(mis)
+        # TasksQueue is singleton
+        TasksQueue().submit(training_task)
+
+# Make sure that the singleton TasksExecutor is running
+TasksExecutor()
+
 app = FastAPI()
+
+logging.info(
+    ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>    STARTED   <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+)
 
 
 @app.get("/models")
@@ -155,11 +181,6 @@ def determine_model_instance_name_date_path() -> str:
     now = datetime.now()
     date_time_str = now.strftime("%Y%m%d_%H-%M-%S-%f")
     return date_time_str
-
-
-logging.info(
-    ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>    STARTED   <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-)
 
 
 @app.get("/models/{biz_task}/{mod_type}/{project}/do_inference")

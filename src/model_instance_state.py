@@ -1,7 +1,8 @@
+from __future__ import annotations
+import logging
 from enum import Enum
 import os
 from config import Constants
-import logging
 
 
 class ModelInstanceStateEnum(Enum):
@@ -14,21 +15,40 @@ class ModelInstanceStateEnum(Enum):
 class ModelInstanceState:
 
     @staticmethod
-    def from_train_directory(directory: str) -> list:
-        model_instance_dirs = []
+    def from_train_directory(root_dir: str) -> list[ModelInstanceState]:
+        # check directory exists
+        if not os.path.exists(root_dir):
+            raise FileNotFoundError(f"Directory {root_dir} not found")
         model_instances = []
-        for root, dirs, _ in os.walk(directory):
-            if len(dirs) == 4:
-                model_instance_dirs.append(root)
-        for midir in model_instance_dirs:
-            try:
-                model_instances.append(ModelInstanceState(midir))
-            except Exception as e:
-                logging.error(
-                    "Skipping dir `%s` due to error creating ModelInstanceState: %s",
-                    midir,
-                    e,
-                )
+        root_len = len(root_dir.split(os.path.sep))
+
+        for subdir, _, _ in sorted(os.walk(root_dir), reverse=True):
+            # if the difference between the number of parts in the root and
+            # the number of parts in the directory is 4 then add it to the list
+            subdirs = subdir.split(os.path.sep)
+            if len(subdirs) - root_len == 4:
+                try:
+                    model_instances.append(ModelInstanceState(subdir))
+                except Exception as e:
+                    logging.error(
+                        "Skipping dir `%s` due to error creating ModelInstanceState: %s",
+                        subdir,
+                        e,
+                    )
+
+        if len(model_instances) == 0:
+            logging.warning("No model instances found in directory `%s`", root_dir)
+        else:
+            # concatenate the model instances into a string
+            msg = ""
+            for model_instance in model_instances:
+                msg += (str(model_instance)) + "\n"
+            logging.info(
+                "Found %s model instances in directory `%s`:\n%s",
+                len(model_instances),
+                root_dir,
+                msg,
+            )
         return model_instances
 
     def __init__(self, directory: str):
@@ -46,7 +66,7 @@ class ModelInstanceState:
         self.__biz_task, self.__mod_type, self.__project, self.__mod_instance = parts[
             -4:
         ]
-        self.__state = None
+        self.__determine_state()
 
     def __determine_state(self):
 
@@ -71,7 +91,6 @@ class ModelInstanceState:
             training_in_progress_file
         ):
             self.__state = ModelInstanceStateEnum.TRAINING_IN_PROGRESS
-            # todo add timed out state check
         else:
             directory_subtree = ""
             for root, _, files in os.walk(self.directory):
@@ -101,3 +120,8 @@ class ModelInstanceState:
         if self.__state is None:
             self.__determine_state()
         return self.__state
+
+    # Override the __str__ method to return a string representation of the object
+    def __str__(self):
+        return f"ModelInstanceState({self.__biz_task}, \
+        {self.__mod_type}, {self.__project}, {self.__mod_instance}, {self.state})"
