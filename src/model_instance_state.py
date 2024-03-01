@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 from enum import Enum
 import os
+from pathlib import Path
 import pandas as pd
 
 from pandas import DataFrame
@@ -60,7 +61,7 @@ class ModelInstanceState:
             raise FileNotFoundError(f"Directory {self.directory} not found")
         if not os.path.isdir(self.directory):
             raise NotADirectoryError(f"{self.directory} is not a directory")
-        parts = self.directory.split(os.path.sep)
+        parts = Path(self.directory).parts
         if len(parts) < 4:
             raise ValueError(
                 f"Passed directory path `{self.directory}` must have at least four parts: \
