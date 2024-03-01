@@ -163,29 +163,45 @@ class TestModelInstanceState(unittest.TestCase):
             "ModelInstanceState.from_train_directory should return 4 model instances",
         )
 
-        # self.assertEqual(
-        #     mis_list[0].state,
-        #     ModelInstanceStateEnum.DATA_UPLOADED,
-        #     "ModelInstanceState.state should be DATA_UPLOADED",
-        # )
+        self.assertEqual(
+            mis_list[3].state,
+            ModelInstanceStateEnum.DATA_UPLOADED,
+            "ModelInstanceState.state should be DATA_UPLOADED",
+        )
 
-        # self.assertEqual(
-        #     mis_list[1].state,
-        #     ModelInstanceStateEnum.TRAINING_IN_PROGRESS,
-        #     "ModelInstanceState.state should be TRAINING_IN_PROGRESS",
-        # )
+        self.assertEqual(
+            mis_list[2].state,
+            ModelInstanceStateEnum.TRAINING_IN_PROGRESS,
+            "ModelInstanceState.state should be TRAINING_IN_PROGRESS",
+        )
 
-        # self.assertEqual(
-        #     mis_list[2].state,
-        #     ModelInstanceStateEnum.TRAINED_READY_TO_SERVE,
-        #     "ModelInstanceState.state should be TRAINED_READY_TO_SERVE",
-        # )
+        self.assertEqual(
+            mis_list[1].state,
+            ModelInstanceStateEnum.TRAINED_READY_TO_SERVE,
+            "ModelInstanceState.state should be TRAINED_READY_TO_SERVE",
+        )
 
-        # self.assertEqual(
-        #     mis_list[3].state,
-        #     ModelInstanceStateEnum.TRAINING_FAILED,
-        #     "ModelInstanceState.state should be TRAINING_FAILED",
-        # )
+        self.assertEqual(
+            mis_list[0].state,
+            ModelInstanceStateEnum.TRAINING_FAILED,
+            "ModelInstanceState.state should be TRAINING_FAILED",
+        )
+
+    def test_load_training_data(self):
+        # Create a ModelInstanceState instance
+        mis = ModelInstanceState()
+
+        # Call the load_training_data method
+        training_data = mis.load_training_data()
+
+        # Assert that the returned training_data is as expected
+        # Replace 'expected_training_data' with the actual expected value
+        expected_training_data = "expected_training_data"
+        self.assertEqual(
+            training_data,
+            expected_training_data,
+            "ModelInstanceState.load_training_data should return the expected training data",
+        )
 
 
 if __name__ == "__main__":

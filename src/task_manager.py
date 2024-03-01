@@ -45,7 +45,6 @@ class Task(ABC):
         """
         Execute the task.
         """
-        pass
 
     @abstractmethod
     def _check_state(self):
@@ -53,7 +52,6 @@ class Task(ABC):
         Check the state of the task.
         Subclasses should Raise ValueError if the state is not valid for the task.
         """
-        pass
 
     def __str__(self):
         return f"{self.__class__.__name__}::{self.name}"

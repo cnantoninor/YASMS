@@ -2,6 +2,9 @@ from __future__ import annotations
 import logging
 from enum import Enum
 import os
+import pandas as pd
+
+from pandas import DataFrame
 from config import Constants
 
 
@@ -68,6 +71,13 @@ class ModelInstanceState:
         ]
         self.__determine_state()
 
+    def check_trainable(self):
+        if (
+            self.state != ModelInstanceStateEnum.DATA_UPLOADED
+            and self.state != ModelInstanceStateEnum.TRAINING_IN_PROGRESS
+        ):
+            raise ValueError(f"Model instance `{self}` is not in a state to be trained")
+
     def __determine_state(self):
 
         training_subdir = os.path.join(self.directory, Constants.TRAINING_SUBDIR)
@@ -98,6 +108,9 @@ class ModelInstanceState:
                 for file in files:
                     directory_subtree += f"  - {file}\n"
             raise ValueError(f"Could not determine state for {directory_subtree}")
+
+    def load_training_data(self) -> DataFrame:
+        return pd.read_csv(self.directory + "/" + Constants.MODEL_DATA_FILE)
 
     @property
     def task(self) -> str:
