@@ -52,7 +52,9 @@ class Paths:
 @dataclass
 class Constants:
     BIZ_TASK_SPAM = "spam_classifier"
-    VALID_MODEL_TYPES = [BIZ_TASK_SPAM]
+    GRADIENT_BOOSTING_CLASSIFIER = "GradientBoostingClassifier"
+    VALID_BIZ_TASK_MODEL_PAIR = [f"{BIZ_TASK_SPAM}/{GRADIENT_BOOSTING_CLASSIFIER}"]
+    VALID_BIZ_TASK_MODEL_PAIR_TEST = [f"{BIZ_TASK_SPAM}/test_model"]
     MODEL_DATA_FILE = "model_data.csv"
     TRAINING_IN_PROGRESS_LOG = "training_in_progress.log"
     TRAINING_ERROR_LOG = "training_error.log"

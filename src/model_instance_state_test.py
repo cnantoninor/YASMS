@@ -2,7 +2,7 @@ import unittest
 import tempfile
 from model_instance_state import ModelInstanceState, ModelInstanceStateEnum
 from config import Constants, test_data_path
-from test_utils import (
+from src.utils import (
     data_uploaded_mis_and_dir,
     trained_ready_to_serve_mis_and_dir,
     training_failed_mis_and_dir,
@@ -164,6 +164,57 @@ class TestModelInstanceState(unittest.TestCase):
                 mis.instance,
                 f"ModelInstanceState.state should be f{mis.instance} but is f{mis.state}",
             )
+
+    def test_check_trainable(self):
+        # Test check_trainable
+        mis, _ = data_uploaded_mis_and_dir()
+        mis.check_trainable()
+
+        mis, _ = training_in_progress_mis_and_dir()
+        mis.check_trainable()
+
+        mis, _ = trained_ready_to_serve_mis_and_dir()
+        with self.assertRaises(ValueError):
+            mis.check_trainable()
+
+        mis, _ = training_failed_mis_and_dir()
+        with self.assertRaises(ValueError):
+            mis.check_trainable()
+
+    def test_load_training_data(self):
+        # Test load_training_data
+        mis, _ = data_uploaded_mis_and_dir()
+        df = mis.load_training_data()
+        self.assertEqual(
+            df.shape[0],
+            99,
+            "ModelInstanceState.load_training_data should return a dataframe with 5572 rows",
+        )
+        self.assertEqual(
+            df.shape[1],
+            47,
+            "ModelInstanceState.load_training_data should return a dataframe with 2 columns",
+        )
+
+    def test__load_features_and_target(self):
+        # Test __load_features_and_target
+        mis, _ = data_uploaded_mis_and_dir()
+        mis._ModelInstanceState__load_features_and_target()
+        self.assertEqual(
+            mis.features.shape[0],
+            99,
+            "ModelInstanceState.__load_features_and_target should return a dataframe with 99 rows",
+        )
+        self.assertEqual(
+            mis.features.shape[1],
+            46,
+            "ModelInstanceState.__load_features_and_target should return a dataframe with 46 columns",
+        )
+        self.assertEqual(
+            mis.target.shape[0],
+            99,
+            "ModelInstanceState.__load_features_and_target should return a dataframe with 99 rows",
+        )
 
 
 if __name__ == "__main__":

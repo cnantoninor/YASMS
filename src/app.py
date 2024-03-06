@@ -10,6 +10,7 @@ import pandas as pd
 from fastapi import FastAPI, File, UploadFile, Form
 import config
 from model_instance_state import ModelInstanceState, ModelInstanceStateEnum
+from utils import check_valid_biz_task_model_pair
 from task_manager import TasksExecutor, TasksQueue
 from trainer import TrainingTask
 
@@ -79,11 +80,11 @@ async def upload_train_data(
 
     Args:
         train_data (UploadFile): The CSV file to be uploaded.
-        features_fields (List[str]): the list of the fields in the CSV file `train_data` that will be used as features. Existence of fields will be checked.
-        target_field (str): the field in the CSV file `train_data` that will be used as target. Existence of the field will be checked.
         biz_task (str): The business task, e.g. spam_classifier.
         mod_type (str): The type of the model, e.g. KNN, SVM, etc..
         project (str): The name of the project.
+        features_fields (List[str]): the list of the fields in the CSV file `train_data` that will be used as features. Existence of fields will be checked.
+        target_field (str): the field in the CSV file `train_data` that will be used as target. Existence of the field will be checked.
 
     Returns:
         dict: A dictionary containing the uploaded train data path.
@@ -92,7 +93,7 @@ async def upload_train_data(
         Error if the file is not a CSV or if the file does not contain the required fields.
     """
 
-    assert biz_task in config.Constants.VALID_MODEL_TYPES
+    check_valid_biz_task_model_pair(biz_task, mod_type)
 
     contents = await train_data.read()
 

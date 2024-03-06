@@ -94,6 +94,7 @@ class ModelInstanceState:
             os.path.join(self.directory, Constants.MODEL_DATA_FILE)
         ):
             self.__state = ModelInstanceStateEnum.DATA_UPLOADED
+            self.__load_features_and_target()
         elif os.path.exists(training_subdir) and os.path.exists(model_pickle_file):
             self.__state = ModelInstanceStateEnum.TRAINED_READY_TO_SERVE
         elif os.path.exists(training_subdir) and os.path.exists(training_error_file):
@@ -112,6 +113,10 @@ class ModelInstanceState:
 
     def load_training_data(self) -> DataFrame:
         return pd.read_csv(self.directory + "/" + Constants.MODEL_DATA_FILE)
+
+    def __load_features_and_target(self):
+        # todo from here...
+        raise NotImplementedError("Not implemented yet")
 
     @property
     def task(self) -> str:

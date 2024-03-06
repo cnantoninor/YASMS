@@ -3,7 +3,7 @@
 import unittest
 from unittest.mock import patch
 from model_instance_state import ModelInstanceState
-from test_utils import data_uploaded_mis_and_dir, test_data__invalid_path
+from src.utils import data_uploaded_mis_and_dir, test_data__invalid_path
 from trainer import TrainingTask
 
 

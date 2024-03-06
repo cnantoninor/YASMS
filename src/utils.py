@@ -1,5 +1,7 @@
+from dataclasses import dataclass
 from pathlib import Path
-from config import test_data_path
+import sys
+from config import Constants, test_data_path
 from model_instance_state import ModelInstanceState
 
 test_data__data_uploaded_path: Path = (
@@ -41,3 +43,30 @@ def training_in_progress_mis_and_dir():
     training_in_progress_dir = test_data__training_in_progress_path.as_posix()
     mis = ModelInstanceState(training_in_progress_dir)
     return mis, training_in_progress_dir
+
+
+@dataclass
+class UtilsData:
+    test_environment = None
+
+
+def is_test_environment():
+    if UtilsData.test_environment is None:
+        UtilsData.test_environment = False
+        for module in sys.modules.values():
+            if module.__name__ in ["unittest", "pytest"]:
+                UtilsData.test_environment = True
+    return UtilsData.test_environment
+
+
+def check_valid_biz_task_model_pair(biz_task: str, model_type: str):
+    task_model_pair = f"{biz_task}/{model_type}"
+    valid_pairs = (
+        Constants.VALID_BIZ_TASK_MODEL_PAIR
+        if not is_test_environment()
+        else Constants.VALID_BIZ_TASK_MODEL_PAIR_TEST
+    )
+    if not task_model_pair in valid_pairs:
+        raise ValueError(
+            f"Invalid business task model type pair: {task_model_pair}; Valid values: {Constants.VALID_BIZ_TASK_MODEL_PAIR}"
+        )
