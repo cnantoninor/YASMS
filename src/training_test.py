@@ -2,7 +2,7 @@
 
 import unittest
 from unittest.mock import patch
-from model_instance_state import ModelInstanceState
+from src.model_instance import ModelInstance
 from src.utils import data_uploaded_mis_and_dir, test_data__invalid_path
 from trainer import TrainingTask
 
@@ -29,7 +29,7 @@ class TestTrainingTask(unittest.TestCase):
     def test_check_state_not_data_uploaded(self):
         with self.assertRaises(ValueError):
             self.task = TrainingTask(
-                ModelInstanceState(test_data__invalid_path.as_posix()),
+                ModelInstance(test_data__invalid_path.as_posix()),
             )
 
 

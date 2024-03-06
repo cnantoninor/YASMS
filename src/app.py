@@ -9,7 +9,7 @@ from typing import List
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, Form
 import config
-from model_instance_state import ModelInstanceState, ModelInstanceStateEnum
+from src.model_instance import ModelInstance, ModelInstanceStateEnum
 from utils import check_valid_biz_task_model_pair
 from task_manager import TasksExecutor, TasksQueue
 from trainer import TrainingTask
@@ -22,7 +22,7 @@ logging.info(
     "Creating TrainingTask(s) from ModelInstanceState instances in train data dir: %s...",
     config.train_data_path,
 )
-list_mis = ModelInstanceState.from_train_directory(config.train_data_path.as_posix())
+list_mis = ModelInstance.from_train_directory(config.train_data_path.as_posix())
 for mis in list_mis:
     if (
         mis.state == ModelInstanceStateEnum.DATA_UPLOADED
@@ -97,27 +97,29 @@ async def upload_train_data(
 
     contents = await train_data.read()
 
-    train_data_dir = (
+    uploaded_data_dir = (
         config.train_data_path.joinpath(biz_task)
         .joinpath(mod_type)
         .joinpath(project)
         .joinpath(determine_model_instance_name_date_path())
     )
 
-    os.makedirs(train_data_dir, exist_ok=True)
+    os.makedirs(uploaded_data_dir, exist_ok=True)
 
     # Check if the file is a zip file
     if zipfile.is_zipfile(io.BytesIO(contents)):
         # If it's a zip file, extract it
         with zipfile.ZipFile(io.BytesIO(contents), "r") as zip_ref:
-            zip_ref.extractall(path=train_data_dir)
+            zip_ref.extractall(path=uploaded_data_dir)
     else:
         # If it's not a zip file, write it directly
-        with open(os.path.join(train_data_dir, train_data.filename), "wb") as f:
+        with open(os.path.join(uploaded_data_dir, train_data.filename), "wb") as f:
             f.write(contents)
 
-    __check_csv_file(train_data_dir, features_fields, target_field)
-    __clean_train_data_dir_if_needed(train_data_dir.parent)
+    __write_features_and_target_fields(uploaded_data_dir, features_fields, target_field)
+    __check_csv_file(uploaded_data_dir, features_fields, target_field)
+    __clean_train_data_dir_if_needed(uploaded_data_dir.parent)
+    mis = ModelInstance(uploaded_data_dir.as_posix())
 
     logging.info(
         """Successfully Uploaded train data for business task `%s` 
@@ -126,12 +128,20 @@ async def upload_train_data(
         biz_task,
         mod_type,
         project,
-        train_data_dir,
+        uploaded_data_dir,
         features_fields,
         target_field,
     )
 
-    return {"uploaded_train_data_path": train_data_dir}
+    return {"uploaded_train_data_path": uploaded_data_dir, "model_instance": mis}
+
+
+def __write_features_and_target_fields(directory, features_fields, target_field):
+    with open(os.path.join(directory, config.Constants.FEATURES_FIELDS_FILE), "w") as f:
+        f.write("\n".join(features_fields))
+
+    with open(os.path.join(directory, config.Constants.TARGET_FIELD_FILE), "w") as f:
+        f.write(target_field)
 
 
 def __check_csv_file(directory, features_fields, target_field):

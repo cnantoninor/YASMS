@@ -22,3 +22,5 @@ src/uvicorn.err.log
 notebook/.ipynb_checkpoints
 
 app.log
+
+.coverage

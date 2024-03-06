@@ -1,6 +1,6 @@
 import unittest
 import tempfile
-from model_instance_state import ModelInstanceState, ModelInstanceStateEnum
+from src.model_instance import ModelInstance, ModelInstanceStateEnum
 from config import Constants, test_data_path
 from src.utils import (
     data_uploaded_mis_and_dir,
@@ -11,7 +11,7 @@ from src.utils import (
 )
 
 
-class TestModelInstanceState(unittest.TestCase):
+class TestModelInstance(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.TemporaryDirectory()
         self.biz_task = Constants.BIZ_TASK_SPAM
@@ -33,7 +33,7 @@ class TestModelInstanceState(unittest.TestCase):
     def test_init_nonexistent_directory(self):
         # Test initializing ModelInstanceState with a non-existing directory
         with self.assertRaises(FileNotFoundError):
-            ModelInstanceState("/non/existent/directory")
+            ModelInstance("/non/existent/directory")
 
     def test_init_non_directory(self):
         # Test initializing ModelInstanceState with a non-directory
@@ -41,12 +41,12 @@ class TestModelInstanceState(unittest.TestCase):
         with open(not_a_dir, "w", encoding="utf-8") as f:
             f.write("This is not a directory")
         with self.assertRaises(NotADirectoryError):
-            ModelInstanceState(not_a_dir)
+            ModelInstance(not_a_dir)
 
     def test_init_invalid_directory_less_4_parts(self):
         # Test initializing ModelInstanceState with an invalid directory
         with self.assertRaises(ValueError):
-            ModelInstanceState("/")
+            ModelInstance("/")
 
     def assert_mis_properties(
         self,
@@ -54,7 +54,7 @@ class TestModelInstanceState(unittest.TestCase):
         mod_type: str,
         project: str,
         instance: str,
-        mis: ModelInstanceState,
+        mis: ModelInstance,
     ):
         self.assertEqual(
             mis.task,
@@ -84,7 +84,7 @@ class TestModelInstanceState(unittest.TestCase):
     def test_determine_state_when_state_cannot_be_determined(self):
         # Test when the state cannot be determined
         with self.assertRaises(ValueError) as cm:
-            _ = ModelInstanceState(test_data__invalid_path.as_posix()).state
+            _ = ModelInstance(test_data__invalid_path.as_posix()).state
             self.assertIn("Could not determine state for", str(cm.exception))
 
     def test_determine_state_when_data_uploaded(self):
@@ -146,11 +146,14 @@ class TestModelInstanceState(unittest.TestCase):
     def test_from_train_directory__invalid_should_raise_file_not_found(self):
         # Test from_train_directory when the directory does not exist
         with self.assertRaises(FileNotFoundError):
-            ModelInstanceState.from_train_directory("/sdfsdfdsf")
+            ModelInstance.from_train_directory("/sdfsdfdsf")
 
     def test_from_train_directory(self):
         # Test from_train_directory when the directory is a training directory
-        mis_list = ModelInstanceState.from_train_directory(test_data_path.as_posix())
+        mis_list = ModelInstance.from_train_directory(test_data_path.as_posix())
+
+        for mis in mis_list:
+            print(mis)
 
         self.assertEqual(
             len(mis_list),
@@ -199,21 +202,15 @@ class TestModelInstanceState(unittest.TestCase):
     def test__load_features_and_target(self):
         # Test __load_features_and_target
         mis, _ = data_uploaded_mis_and_dir()
-        mis._ModelInstanceState__load_features_and_target()
         self.assertEqual(
-            mis.features.shape[0],
-            99,
-            "ModelInstanceState.__load_features_and_target should return a dataframe with 99 rows",
+            mis.features_fields,
+            ["Testo"],
+            "ModelInstanceState.features_fields should return ['Testo']",
         )
         self.assertEqual(
-            mis.features.shape[1],
-            46,
-            "ModelInstanceState.__load_features_and_target should return a dataframe with 46 columns",
-        )
-        self.assertEqual(
-            mis.target.shape[0],
-            99,
-            "ModelInstanceState.__load_features_and_target should return a dataframe with 99 rows",
+            mis.target_field,
+            "Stato Workflow",
+            "ModelInstanceState.target_field should return 'Stato Workflow'",
         )
 
 

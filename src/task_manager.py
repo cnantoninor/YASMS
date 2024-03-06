@@ -3,7 +3,7 @@ import threading
 import logging
 import time
 from abc import ABC, abstractmethod
-from model_instance_state import ModelInstanceState
+from src.model_instance import ModelInstance
 
 
 class Task(ABC):
@@ -31,7 +31,7 @@ class Task(ABC):
         return self._name
 
     @property
-    def model_instance_state(self) -> ModelInstanceState:
+    def model_instance_state(self) -> ModelInstance:
         """
         Get the state of the model instance associated with the task.
 

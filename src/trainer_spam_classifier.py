@@ -1,11 +1,11 @@
 import logging
-from model_instance_state import ModelInstanceState
+from src.model_instance import ModelInstance
 
 logger = logging.getLogger(__name__)
 
 
 class SpamClassifier:
-    def __init__(self, model_instance_state: ModelInstanceState) -> None:
+    def __init__(self, model_instance_state: ModelInstance) -> None:
         model_instance_state.checkTrainable()
         self.model_instance_state = model_instance_state
 

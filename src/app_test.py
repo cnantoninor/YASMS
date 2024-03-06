@@ -6,6 +6,7 @@ import os
 import zipfile
 import config
 from app import app, determine_model_instance_name_date_path
+from model_instance import ModelInstance, ModelInstanceStateEnum
 
 client = TestClient(app)
 
@@ -63,6 +64,11 @@ class TestApp(unittest.TestCase):
         assert os.path.exists(uploaded_train_data_path)
         now = datetime.now()
         assert now.strftime("%Y%m%d_%H-%M") in uploaded_train_data_path
+        mis = ModelInstance(uploaded_train_data_path)
+        self.assertEqual(mis.state, ModelInstanceStateEnum.DATA_UPLOADED)
+        self.assertEqual(mis.task, config.Constants.BIZ_TASK_SPAM)
+        self.assertEqual(mis.features_fields, ["Testo"])
+        self.assertEqual(mis.target_field, "Stato Workflow")
 
     def test_determine_model_instance_name_date_path(self):
         dt_path = determine_model_instance_name_date_path()
@@ -87,7 +93,7 @@ class TestApp(unittest.TestCase):
             },
             files={
                 "train_data": (
-                    "test_file.csv",
+                    "model_data.csv",
                     file_data,
                     "application/csv",
                 )

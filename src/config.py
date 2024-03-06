@@ -3,7 +3,7 @@ from logging.handlers import RotatingFileHandler
 import os
 from dataclasses import dataclass
 from pathlib import Path
-
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,10 +20,17 @@ LOG_FORMAT = (
 )
 log_handler.setFormatter(logging.Formatter(LOG_FORMAT))
 log_handler.setLevel(logging.INFO)
-
 logger = logging.getLogger()
-logger.addHandler(log_handler)
 logger.setLevel(logging.INFO)
+logger.addHandler(log_handler)
+
+# If running in a test environment, also log to the console AND SET debug level
+for module in sys.modules.values():
+    if module.__name__ in ["unittest", "pytest"]:
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+        logger.addHandler(console_handler)
+        logger.setLevel(logging.DEBUG)
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 root_path: Path = Path(__file__).parent.parent
@@ -51,6 +58,8 @@ class Paths:
 
 @dataclass
 class Constants:
+    FEATURES_FIELDS_FILE = "features_fields.txt"
+    TARGET_FIELD_FILE = "target_field.txt"
     BIZ_TASK_SPAM = "spam_classifier"
     GRADIENT_BOOSTING_CLASSIFIER = "GradientBoostingClassifier"
     VALID_BIZ_TASK_MODEL_PAIR = [f"{BIZ_TASK_SPAM}/{GRADIENT_BOOSTING_CLASSIFIER}"]

@@ -16,10 +16,10 @@ class ModelInstanceStateEnum(Enum):
     TRAINING_FAILED = 4  # Final State
 
 
-class ModelInstanceState:
+class ModelInstance:
 
     @staticmethod
-    def from_train_directory(root_dir: str) -> list[ModelInstanceState]:
+    def from_train_directory(root_dir: str) -> list[ModelInstance]:
         # check directory exists
         if not os.path.exists(root_dir):
             raise FileNotFoundError(f"Directory {root_dir} not found")
@@ -32,7 +32,7 @@ class ModelInstanceState:
             subdirs = subdir.split(os.path.sep)
             if len(subdirs) - root_len == 4:
                 try:
-                    model_instances.append(ModelInstanceState(subdir))
+                    model_instances.append(ModelInstance(subdir))
                 except Exception as e:
                     logging.error(
                         "Skipping dir `%s` due to error creating ModelInstanceState: %s",
@@ -70,6 +70,8 @@ class ModelInstanceState:
         self.__biz_task, self.__mod_type, self.__project, self.__mod_instance = parts[
             -4:
         ]
+        self.__features_fields = []
+        self.__target_field = None
         self.__determine_state()
 
     def check_trainable(self):
@@ -115,8 +117,16 @@ class ModelInstanceState:
         return pd.read_csv(self.directory + "/" + Constants.MODEL_DATA_FILE)
 
     def __load_features_and_target(self):
-        # todo from here...
-        raise NotImplementedError("Not implemented yet")
+        features_fields_file = os.path.join(
+            self.directory, Constants.FEATURES_FIELDS_FILE
+        )
+        # read the features fields file
+        with open(features_fields_file, "r") as f:
+            self.__features_fields = f.read().splitlines()
+        target_field_file = os.path.join(self.directory, Constants.TARGET_FIELD_FILE)
+        # read the target field file
+        with open(target_field_file, "r") as f:
+            self.__target_field = f.read()
 
     @property
     def task(self) -> str:
@@ -140,7 +150,15 @@ class ModelInstanceState:
             self.__determine_state()
         return self.__state
 
+    @property
+    def features_fields(self) -> list[str]:
+        return self.__features_fields
+
+    @property
+    def target_field(self) -> str:
+        return self.__target_field
+
     # Override the __str__ method to return a string representation of the object
     def __str__(self):
-        return f"ModelInstanceState({self.__biz_task}, \
-        {self.__mod_type}, {self.__project}, {self.__mod_instance}, {self.state})"
+        return f"""{self.task}/{self.type}/{self.project}/{self.instance}: 
+            state:{self.state};features:{self.features_fields};target:{self.target_field}"""
