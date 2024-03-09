@@ -7,6 +7,7 @@ import zipfile
 import config
 from app import app, determine_model_instance_name_date_path
 from model_instance import ModelInstance, ModelInstanceStateEnum
+from utils import test_data__data_uploaded_path
 
 client = TestClient(app)
 
@@ -29,7 +30,7 @@ class TestApp(unittest.TestCase):
         biz_task = config.Constants.BIZ_TASK_SPAM
         project = "test_project"
 
-        with open(config.Paths.test_data__upload_train_data_csv_path, "rb") as file:
+        with open(test_data__data_uploaded_path / "model_data.csv", "rb") as file:
             file_data = file.read()
 
         zip_data = io.BytesIO()
@@ -84,7 +85,7 @@ class TestApp(unittest.TestCase):
         biz_task = config.Constants.BIZ_TASK_SPAM
         project = "test_project"
 
-        with open(config.Paths.test_data__upload_train_data_csv_path, "rb") as file:
+        with open(test_data__data_uploaded_path / "model_data.csv", "rb") as file:
             file_data = file.read()
 
         response = client.post(

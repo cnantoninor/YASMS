@@ -48,12 +48,6 @@ class Paths:
     testnino1_classification_task_refined_path: Path = (
         data_path / "wl_classif_testnino1/TESTNINO1_without_StatoWorkflow_N.csv"
     )
-    test_data__upload_train_data_csv_path: Path = (
-        test_data_path / "upload_train_data.csv"
-    )
-    test_data__invalid_path: Path = (
-        test_data_path / "spam_classifier/test_model/test_project/INVALID"
-    )
 
 
 @dataclass

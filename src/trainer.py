@@ -8,9 +8,7 @@ class TrainingTask(Task):
 
     def __init__(self, model_instance: ModelInstance):
         super().__init__(model_instance)
+        self.model_instance.check_trainable()
 
     def execute(self):
-        logging.info("Executing training task %s", self)
-
-    def _check_state(self):
-        self.model_instance.check_trainable()
+        logging.info("Executing training task `%s`", self)

@@ -17,14 +17,8 @@ class TestTrainingTask(unittest.TestCase):
     def test_execute(self, mock_logging):
         self.task.execute()
         mock_logging.info.assert_called_once_with(
-            "Executing training task %s", self.task
+            "Executing training task `%s`", self.task
         )
-
-    def test_check_state_data_uploaded(self):
-        try:
-            self.task._check_state()  # Should not raise any exception
-        except ValueError:
-            self.fail("_check_state() raised ValueError unexpectedly!")
 
     def test_check_state_not_data_uploaded(self):
         with self.assertRaises(ValueError):
