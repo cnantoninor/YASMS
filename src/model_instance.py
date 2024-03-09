@@ -1,22 +1,41 @@
 from __future__ import annotations
 import logging
-from enum import Enum
+from enum import IntEnum
 import os
 from pathlib import Path
 import pandas as pd
+from abc import ABC, abstractmethod
 
 from pandas import DataFrame
 from config import Constants
+import json
+
+from src import import_class_from_string
 
 
-class ModelInstanceStateEnum(Enum):
+class ModelInstanceStateEnum(IntEnum):
     DATA_UPLOADED = 1
     TRAINING_IN_PROGRESS = 2
     TRAINED_READY_TO_SERVE = 3  # Final State
     TRAINING_FAILED = 4  # Final State
 
 
-class ModelInstance:
+class ModelInterface(ABC):
+
+    @abstractmethod
+    def train(self):
+        pass
+
+    @abstractmethod
+    def predict(self):
+        pass
+
+    @abstractmethod
+    def check_trainable(self):
+        pass
+
+
+class ModelInstance(ABC):
 
     @staticmethod
     def from_train_directory(root_dir: str) -> list[ModelInstance]:
@@ -32,7 +51,8 @@ class ModelInstance:
             subdirs = subdir.split(os.path.sep)
             if len(subdirs) - root_len == 4:
                 try:
-                    model_instances.append(ModelInstance(subdir))
+                    model_instance = ModelInstance(subdir)
+                    model_instances.append(model_instance)
                 except Exception as e:
                     logging.error(
                         "Skipping dir `%s` due to error creating ModelInstanceState: %s",
@@ -72,6 +92,7 @@ class ModelInstance:
         ]
         self.__features_fields = []
         self.__target_field = None
+        self.__instance_logic = None
         self.__determine_state()
 
     def check_trainable(self):
@@ -80,6 +101,7 @@ class ModelInstance:
             and self.state != ModelInstanceStateEnum.TRAINING_IN_PROGRESS
         ):
             raise ValueError(f"Model instance `{self}` is not in a state to be trained")
+        self.__logic.check_trainable()
 
     def __determine_state(self):
 
@@ -128,6 +150,31 @@ class ModelInstance:
         with open(target_field_file, "r") as f:
             self.__target_field = f.read()
 
+    @staticmethod
+    def snake_to_camel_case(snake_case_str: str) -> str:
+        components = snake_case_str.split("_")
+        return "".join(x.title() for x in components).strip()
+
+    def predict(self):
+        return self.__logic().predict()
+
+    def train(self):
+        return self.__logic().train()
+
+    @property
+    def __logic(self) -> ModelInterface:
+        """
+        Specific model logic instance for the model instance
+        """
+        if self.__instance_logic == None:
+            camel_case_name = (
+                f"{ModelInstance.snake_to_camel_case(self.task)}ModelLogic"
+            )
+            self.__instance_logic = import_class_from_string(
+                f"{self.task}.{camel_case_name}"
+            )(self)
+        return self.__instance_logic
+
     @property
     def task(self) -> str:
         return self.__biz_task
@@ -159,6 +206,17 @@ class ModelInstance:
         return self.__target_field
 
     # Override the __str__ method to return a string representation of the object
-    def __str__(self):
-        return f"""{self.task}/{self.type}/{self.project}/{self.instance}: 
-            state:{self.state};features:{self.features_fields};target:{self.target_field}"""
+    def __str__(self) -> str:
+        return self.to_json()
+
+    def to_json(self) -> str:
+        data = {
+            "task": self.task,
+            "type": self.type,
+            "project": self.project,
+            "instance": self.instance,
+            "state": self.state.name,
+            "features": self.features_fields,
+            "target": self.target_field,
+        }
+        return json.dumps(data)

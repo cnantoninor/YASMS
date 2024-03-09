@@ -59,7 +59,7 @@ class TestApp(unittest.TestCase):
     def assert_upload_response(self, response):
         print(response.json())
         assert response.status_code == 200
-        uploaded_train_data_path = response.json()["uploaded_train_data_path"]
+        uploaded_train_data_path = response.json()["path"]
         assert uploaded_train_data_path is not None
         assert os.path.exists(uploaded_train_data_path)
         now = datetime.now()
@@ -69,6 +69,8 @@ class TestApp(unittest.TestCase):
         self.assertEqual(mis.task, config.Constants.BIZ_TASK_SPAM)
         self.assertEqual(mis.features_fields, ["Testo"])
         self.assertEqual(mis.target_field, "Stato Workflow")
+        model_instance_str = response.json()["model_instance"]
+        self.assertEqual(model_instance_str, mis.__str__())
 
     def test_determine_model_instance_name_date_path(self):
         dt_path = determine_model_instance_name_date_path()

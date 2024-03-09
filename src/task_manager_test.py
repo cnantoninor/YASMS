@@ -9,20 +9,17 @@ class DummyTask(Task):
     def execute(self):
         pass
 
-    def _check_state(self):
-        pass
-
 
 class TestTask(unittest.TestCase):
     def test_task_name(self):
-        task = DummyTask("TestTask", None)
-        self.assertEqual(task.name, "TestTask")
+        task = DummyTask(None)
+        self.assertEqual(task.name, "None")
 
 
 class TestTasksQueue(unittest.TestCase):
     def test_publish(self):
         tasks_queue = TasksQueue()
-        task = DummyTask("TestTrainingTask", None)
+        task = DummyTask(None)
         with patch("logging.info") as mocked_log:
             tasks_queue.submit(task)
             self.assertEqual(tasks_queue.size, 1)
@@ -31,7 +28,7 @@ class TestTasksQueue(unittest.TestCase):
     def test_size(self):
         tasks_queue = TasksQueue()
         self.assertEqual(tasks_queue.size, 0)
-        task = DummyTask("TestTrainingTask", None)
+        task = DummyTask(None)
         tasks_queue.submit(task)
         self.assertEqual(tasks_queue.size, 1)
 
@@ -45,7 +42,7 @@ class TestSubscriber(unittest.TestCase):
     def test_run(self):
         tasks_queue = TasksQueue()
         self.assertEqual(tasks_queue.size, 0)
-        task = DummyTask("dummy_task", None)
+        task = DummyTask(None)
         with patch("logging.info") as mocked_log:
             tasks_queue.submit(task)
             self.assertEqual(tasks_queue.size, 1)

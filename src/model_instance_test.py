@@ -108,11 +108,15 @@ class TestModelInstance(unittest.TestCase):
         self.assert_mis_properties(
             self.biz_task, self.mod_type, self.project, mod_instance_name, mis
         )
+
+        print("****************")
+        print(mis.state)
+        print(type(mis.state))
+
         self.assertEqual(
             mis.state,
             ModelInstanceStateEnum.TRAINING_IN_PROGRESS,
-            "ModelInstanceState.state should be TRAINING_IN_PROGRESS \
-                when training_in_progress_file exists",
+            f"ModelInstanceState.state should be TRAINING_IN_PROGRESS when training_in_progress_file exists but is:`{mis.state}`",
         )
 
     def test_determine_state_when_trained_ready_to_serve(self):
@@ -125,8 +129,7 @@ class TestModelInstance(unittest.TestCase):
         self.assertEqual(
             mis.state,
             ModelInstanceStateEnum.TRAINED_READY_TO_SERVE,
-            "ModelInstanceState.state should be TRAINED_READY_TO_SERVE \
-                when TRAINED_MODEL_FILE file exists",
+            "ModelInstanceState.state should be TRAINED_READY_TO_SERVE when TRAINED_MODEL_FILE file exists",
         )
 
     def test_determine_state_when_training_failed(self):
@@ -211,6 +214,11 @@ class TestModelInstance(unittest.TestCase):
             mis.target_field,
             "Stato Workflow",
             "ModelInstanceState.target_field should return 'Stato Workflow'",
+        )
+
+    def test_snake_to_camel_case(self):
+        self.assertEqual(
+            ModelInstance.snake_to_camel_case("spam_classifier"), "SpamClassifier"
         )
 
 

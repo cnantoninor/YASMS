@@ -119,21 +119,16 @@ async def upload_train_data(
     __write_features_and_target_fields(uploaded_data_dir, features_fields, target_field)
     __check_csv_file(uploaded_data_dir, features_fields, target_field)
     __clean_train_data_dir_if_needed(uploaded_data_dir.parent)
-    mis = ModelInstance(uploaded_data_dir.as_posix())
+    model_instance = ModelInstance(uploaded_data_dir.as_posix())
+    training_task = TrainingTask(model_instance)
+    TasksQueue().submit(training_task)
 
     logging.info(
-        """Successfully Uploaded train data for business task `%s` 
-        and model type `%s` and project `%s`
-        in %s, with features:%s and target:%s""",
-        biz_task,
-        mod_type,
-        project,
-        uploaded_data_dir,
-        features_fields,
-        target_field,
+        """Successfully uploaded train data and submitted train task for ModelInstance: `%s`""",
+        model_instance,
     )
 
-    return {"uploaded_train_data_path": uploaded_data_dir, "model_instance": mis}
+    return {"model_instance": model_instance.__str__(), "path": uploaded_data_dir}
 
 
 def __write_features_and_target_fields(directory, features_fields, target_field):

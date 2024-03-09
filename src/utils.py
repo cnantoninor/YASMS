@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import sys
 from config import Constants, test_data_path
-from src.model_instance import ModelInstance
+from model_instance import ModelInstance
 
 test_data__data_uploaded_path: Path = (
     test_data_path / "spam_classifier/test_model/test_project/DATA_UPLOADED"

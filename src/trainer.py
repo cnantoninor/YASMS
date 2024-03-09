@@ -6,11 +6,11 @@ from task_manager import Task
 
 class TrainingTask(Task):
 
-    def __init__(self, model_instance_state: ModelInstance):
-        super().__init__(model_instance_state.__str__, model_instance_state)
+    def __init__(self, model_instance: ModelInstance):
+        super().__init__(model_instance)
 
     def execute(self):
         logging.info("Executing training task %s", self)
 
     def _check_state(self):
-        self.model_instance_state.check_trainable()
+        self.model_instance.check_trainable()

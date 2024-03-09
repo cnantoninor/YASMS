@@ -15,10 +15,9 @@ class Task(ABC):
         model_instance_state (ModelInstanceState): The state of the model instance associated with the task.
     """
 
-    def __init__(self, name, model_instance_state):
-        self._name = name
-        self._model_instance_state = model_instance_state
-        self._check_state()
+    def __init__(self, model_instance: ModelInstance):
+        self._name = model_instance.__str__()
+        self._model_instance = model_instance
 
     @property
     def name(self):
@@ -31,26 +30,19 @@ class Task(ABC):
         return self._name
 
     @property
-    def model_instance_state(self) -> ModelInstance:
+    def model_instance(self) -> ModelInstance:
         """
         Get the state of the model instance associated with the task.
 
         Returns:
             ModelInstanceState: The state of the model instance.
         """
-        return self._model_instance_state
+        return self._model_instance
 
     @abstractmethod
     def execute(self):
         """
         Execute the task.
-        """
-
-    @abstractmethod
-    def _check_state(self):
-        """
-        Check the state of the task.
-        Subclasses should Raise ValueError if the state is not valid for the task.
         """
 
     def __str__(self):
