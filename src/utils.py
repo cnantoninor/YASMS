@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from pathlib import Path
+from importlib import import_module
 import sys
 from config import Constants
 
@@ -27,13 +27,12 @@ def check_valid_biz_task_model_pair(biz_task: str, model_type: str):
     )
     if not task_model_pair in valid_pairs:
         raise ValueError(
-            f"Invalid business task model type pair: {task_model_pair}; Valid values: {Constants.VALID_BIZ_TASK_MODEL_PAIR}"
+            f"""Invalid business task model type pair: {task_model_pair}; /
+            Valid values: {Constants.VALID_BIZ_TASK_MODEL_PAIR}"""
         )
 
 
 def import_class_from_string(path: str):
-    from importlib import import_module
-
     module_path, _, class_name = path.rpartition(".")
     mod = import_module(module_path)
     klass = getattr(mod, class_name)

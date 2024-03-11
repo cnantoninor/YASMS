@@ -8,39 +8,16 @@ import shutil
 from typing import List
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, Form
+from app_startup import bootstrap_app_state
 import config
-from model_instance import ModelInstance, ModelInstanceStateEnum
+from model_instance import ModelInstance
 from utils import check_valid_biz_task_model_pair
-from task_manager import TasksExecutor, TasksQueue
+from task_manager import TasksQueue
 from trainer import TrainingTask
 
-logging.info(
-    ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> STARTING APP <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-)
-
-logging.info(
-    "Creating TrainingTask(s) from ModelInstanceState instances in train data dir: %s...",
-    config.train_data_path,
-)
-list_mis = ModelInstance.from_train_directory(config.train_data_path.as_posix())
-for mis in list_mis:
-    if (
-        mis.state == ModelInstanceStateEnum.DATA_UPLOADED
-        or mis.state == ModelInstanceStateEnum.TRAINING_IN_PROGRESS
-    ):
-        logging.info("Creating training task for ModelInstanceState: %s", mis)
-        training_task = TrainingTask(mis)
-        # TasksQueue is singleton
-        TasksQueue().submit(training_task)
-
-# Make sure that the singleton TasksExecutor is running
-TasksExecutor()
+bootstrap_app_state()
 
 app = FastAPI()
-
-logging.info(
-    ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>    STARTED   <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-)
 
 
 @app.get("/models")
@@ -61,7 +38,8 @@ async def get_available_biz_task_and_names():
     Retrieves the available model types and model names registered in the server.
 
     Returns:
-        dict: A dictionaries containing the model types and names that are currently available and registered in the server.
+        dict: A dictionaries containing the model types and names
+        that are currently available and registered in the server.
     """
     pass
 
@@ -83,8 +61,10 @@ async def upload_train_data(
         biz_task (str): The business task, e.g. spam_classifier.
         mod_type (str): The type of the model, e.g. KNN, SVM, etc..
         project (str): The name of the project.
-        features_fields (List[str]): the list of the fields in the CSV file `train_data` that will be used as features. Existence of fields will be checked.
-        target_field (str): the field in the CSV file `train_data` that will be used as target. Existence of the field will be checked.
+        features_fields (List[str]): the list of the fields in the
+            CSV file `train_data` that will be used as features. Existence of fields will be checked.
+        target_field (str): the field in the
+            CSV file `train_data` that will be used as target. Existence of the field will be checked.
 
     Returns:
         dict: A dictionary containing the uploaded train data path.
@@ -120,22 +100,29 @@ async def upload_train_data(
     __check_csv_file(uploaded_data_dir, features_fields, target_field)
     __clean_train_data_dir_if_needed(uploaded_data_dir.parent)
     model_instance = ModelInstance(uploaded_data_dir.as_posix())
-    training_task = TrainingTask(model_instance)
-    TasksQueue().submit(training_task)
+    TasksQueue().submit(TrainingTask(model_instance))
 
     logging.info(
         """Successfully uploaded train data and submitted train task for ModelInstance: `%s`""",
         model_instance,
     )
 
-    return {"model_instance": model_instance.__str__(), "path": uploaded_data_dir}
+    return {"model_instance": model_instance.to_json(), "path": uploaded_data_dir}
 
 
 def __write_features_and_target_fields(directory, features_fields, target_field):
-    with open(os.path.join(directory, config.Constants.FEATURES_FIELDS_FILE), "w") as f:
+    with open(
+        os.path.join(directory, config.Constants.FEATURES_FIELDS_FILE),
+        "w",
+        encoding="utf8",
+    ) as f:
         f.write("\n".join(features_fields))
 
-    with open(os.path.join(directory, config.Constants.TARGET_FIELD_FILE), "w") as f:
+    with open(
+        os.path.join(directory, config.Constants.TARGET_FIELD_FILE),
+        "w",
+        encoding="utf8",
+    ) as f:
         f.write(target_field)
 
 

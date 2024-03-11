@@ -97,12 +97,15 @@ class ModelInstance(ABC):
         self.__determine_state()
 
     def check_trainable(self):
-        if (
-            self.state != ModelInstanceStateEnum.DATA_UPLOADED
-            and self.state != ModelInstanceStateEnum.TRAINING_IN_PROGRESS
-        ):
+        if not self.is_trainable():
             raise ValueError(f"Model instance `{self}` is not in a state to be trained")
         self.__logic.check_trainable()
+
+    def is_trainable(self):
+        return self.state in (
+            ModelInstanceStateEnum.DATA_UPLOADED,
+            ModelInstanceStateEnum.TRAINING_IN_PROGRESS,
+        )
 
     def __determine_state(self):
 

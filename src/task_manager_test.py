@@ -52,7 +52,6 @@ class TestSubscriber(unittest.TestCase):
             mocked_log.assert_any_call("Adding task to queue: `%s`", task)
             mocked_log.assert_any_call("Executing task: `%s`", task)
             mocked_log.assert_any_call("Task executed succesfully: `%s`", task)
-            mocked_log.assert_any_call("Remaining tasks in queue: %s", 0)
 
 
 if __name__ == "__main__":

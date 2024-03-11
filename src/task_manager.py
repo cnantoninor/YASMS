@@ -73,6 +73,14 @@ class TasksQueue:
     def size(self):
         return self.tasks.qsize()
 
+    @property
+    def is_empty(self):
+        return self.tasks.empty()
+
+    @property
+    def task_list_str(self) -> str:
+        return [str(task) for task in list(self.tasks.queue)]
+
 
 class TasksExecutor:
 
@@ -90,6 +98,10 @@ class TasksExecutor:
         self.thread.daemon = True
         self.thread.start()
 
+    @property
+    def queue(self):
+        return self.tasks_queue
+
     def run(self):
         while True:
             try:
@@ -104,4 +116,7 @@ class TasksExecutor:
             finally:
                 # free the thread resource from eventual poisoned tasks
                 self.tasks_queue.tasks.task_done()
-                logging.info("Remaining tasks in queue: %s", self.tasks_queue.size)
+                logging.info(
+                    "Removed task due to the previous error. Remaining tasks in queue: %s",
+                    self.tasks_queue.size,
+                )
