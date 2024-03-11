@@ -36,7 +36,6 @@ src_path = os.path.dirname(os.path.abspath(__file__))
 root_path: Path = Path(__file__).parent.parent
 data_path: Path = root_path / "data"
 train_data_path: Path = data_path / "train"
-test_data_path: Path = root_path / "test_data"
 
 
 @dataclass

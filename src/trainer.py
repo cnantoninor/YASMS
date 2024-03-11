@@ -1,5 +1,5 @@
 import logging
-from src.model_instance import ModelInstance
+from model_instance import ModelInstance
 
 from task_manager import Task
 

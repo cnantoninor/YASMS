@@ -3,7 +3,7 @@ import threading
 import logging
 import time
 from abc import ABC, abstractmethod
-from src.model_instance import ModelInstance
+from model_instance import ModelInstance
 
 
 class Task(ABC):

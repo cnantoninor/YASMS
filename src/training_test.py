@@ -2,8 +2,8 @@
 
 import unittest
 from unittest.mock import patch
-from src.model_instance import ModelInstance
-from src.utils import data_uploaded_mis_and_dir, test_data__invalid_path
+from model_instance import ModelInstance
+from utils_test import data_uploaded_mis_and_dir, test_data__invalid_path
 from trainer import TrainingTask
 
 

@@ -1,13 +1,14 @@
 import unittest
 import tempfile
-from src.model_instance import ModelInstance, ModelInstanceStateEnum
-from config import Constants, test_data_path
-from src.utils import (
+from model_instance import ModelInstance, ModelInstanceStateEnum
+from config import Constants
+from utils_test import (
+    test_data_path,
+    test_data__invalid_path,
     data_uploaded_mis_and_dir,
     trained_ready_to_serve_mis_and_dir,
     training_failed_mis_and_dir,
     training_in_progress_mis_and_dir,
-    test_data__invalid_path,
 )
 
 
@@ -116,7 +117,8 @@ class TestModelInstance(unittest.TestCase):
         self.assertEqual(
             mis.state,
             ModelInstanceStateEnum.TRAINING_IN_PROGRESS,
-            f"ModelInstanceState.state should be TRAINING_IN_PROGRESS when training_in_progress_file exists but is:`{mis.state}`",
+            f"""ModelInstanceState.state should be TRAINING_IN_PROGRESS \
+            when training_in_progress_file exists but is:`{mis.state}`""",
         )
 
     def test_determine_state_when_trained_ready_to_serve(self):

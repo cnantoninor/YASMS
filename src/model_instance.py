@@ -1,16 +1,17 @@
 from __future__ import annotations
+from abc import ABC, abstractmethod
+import json
+
 import logging
 from enum import IntEnum
 import os
 from pathlib import Path
 import pandas as pd
-from abc import ABC, abstractmethod
 
 from pandas import DataFrame
 from config import Constants
-import json
 
-from src import import_class_from_string
+from utils import import_class_from_string
 
 
 class ModelInstanceStateEnum(IntEnum):
@@ -144,11 +145,11 @@ class ModelInstance(ABC):
             self.directory, Constants.FEATURES_FIELDS_FILE
         )
         # read the features fields file
-        with open(features_fields_file, "r") as f:
+        with open(features_fields_file, "r", encoding="utf8") as f:
             self.__features_fields = f.read().splitlines()
         target_field_file = os.path.join(self.directory, Constants.TARGET_FIELD_FILE)
         # read the target field file
-        with open(target_field_file, "r") as f:
+        with open(target_field_file, "r", encoding="utf8") as f:
             self.__target_field = f.read()
 
     @staticmethod
@@ -157,17 +158,17 @@ class ModelInstance(ABC):
         return "".join(x.title() for x in components).strip()
 
     def predict(self):
-        return self.__logic().predict()
+        return self.__logic.predict()
 
     def train(self):
-        return self.__logic().train()
+        return self.__logic.train()
 
     @property
     def __logic(self) -> ModelInterface:
         """
         Specific model logic instance for the model instance
         """
-        if self.__instance_logic == None:
+        if self.__instance_logic is None:
             camel_case_name = (
                 f"{ModelInstance.snake_to_camel_case(self.task)}ModelLogic"
             )

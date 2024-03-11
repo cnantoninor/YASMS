@@ -1,17 +1,17 @@
+import os
+import zipfile
 from datetime import datetime
 import io
 import unittest
 from fastapi.testclient import TestClient
-import os
-import zipfile
 import config
 from app import app, determine_model_instance_name_date_path
 from model_instance import ModelInstance, ModelInstanceStateEnum
-from utils import test_data__data_uploaded_path
+from utils_test import test_data__data_uploaded_path, test_data_path
 
 client = TestClient(app)
 
-os.makedirs(config.test_data_path, exist_ok=True)
+os.makedirs(test_data_path, exist_ok=True)
 
 
 class TestApp(unittest.TestCase):
@@ -21,7 +21,8 @@ class TestApp(unittest.TestCase):
         Test case for uploading a file.
 
         This function sends a POST request to the '/upload' endpoint with a model name and file data.
-        It asserts that the response status code is 200 and the response JSON contains the expected filename and model name.
+        It asserts that the response status code is 200 and the response JSON
+        contains the expected filename and model name.
 
         Returns:
             None
@@ -71,7 +72,7 @@ class TestApp(unittest.TestCase):
         self.assertEqual(mis.features_fields, ["Testo"])
         self.assertEqual(mis.target_field, "Stato Workflow")
         model_instance_str = response.json()["model_instance"]
-        self.assertEqual(model_instance_str, mis.__str__())
+        self.assertEqual(model_instance_str, mis.to_json())
 
     def test_determine_model_instance_name_date_path(self):
         dt_path = determine_model_instance_name_date_path()

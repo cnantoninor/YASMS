@@ -9,7 +9,7 @@ from typing import List
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, Form
 import config
-from src.model_instance import ModelInstance, ModelInstanceStateEnum
+from model_instance import ModelInstance, ModelInstanceStateEnum
 from utils import check_valid_biz_task_model_pair
 from task_manager import TasksExecutor, TasksQueue
 from trainer import TrainingTask
