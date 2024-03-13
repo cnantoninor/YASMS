@@ -34,3 +34,4 @@ python-multipart
 pyarrow
 uvicorn
 coverage
+scikit-learn

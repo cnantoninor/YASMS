@@ -25,7 +25,7 @@ class TestModelInstance(unittest.TestCase):
 
     def test_data_uploaded_state_dir(self):
         mis, data_uploaded_dir = data_uploaded_mis_and_dir()
-        self.assertEqual(mis.directory, data_uploaded_dir)
+        self.assertEqual(mis.__directory, data_uploaded_dir)
         self.assertEqual(mis.state, ModelInstanceStateEnum.DATA_UPLOADED)
         self.assertEqual(mis.task, "spam_classifier")
         self.assertEqual(mis.type, "test_model")

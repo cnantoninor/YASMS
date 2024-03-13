@@ -1,17 +1,23 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import json
-
 import logging
+
 from enum import IntEnum
 import os
 from pathlib import Path
+import pickle
+import traceback
+import numpy
 import pandas as pd
 
 from pandas import DataFrame
+from sklearn.pipeline import Pipeline
 from config import Constants
 
 from utils import import_class_from_string
+
+logger = logging.getLogger(__name__)
 
 
 class ModelInstanceStateEnum(IntEnum):
@@ -24,15 +30,22 @@ class ModelInstanceStateEnum(IntEnum):
 class ModelInterface(ABC):
 
     @abstractmethod
-    def train(self):
-        pass
+    def train(self) -> tuple[pd.DataFrame, numpy.ndarray, Pipeline, float, float]:
+        """
+        Train the model and return:
+            - the metrics stats data frame
+            - the confusion matrix
+            - the trained model pipeline
+            - the cross validation time
+            - the fit time
+        """
 
     @abstractmethod
     def predict(self):
         pass
 
     @abstractmethod
-    def check_trainable(self):
+    def check_trainable(self) -> None:
         pass
 
 
@@ -77,20 +90,20 @@ class ModelInstance(ABC):
         return model_instances
 
     def __init__(self, directory: str):
-        self.directory = directory
-        if not os.path.exists(self.directory):
-            raise FileNotFoundError(f"Directory {self.directory} not found")
-        if not os.path.isdir(self.directory):
-            raise NotADirectoryError(f"{self.directory} is not a directory")
-        parts = Path(self.directory).parts
+        self.__directory = directory
+        if not os.path.exists(self.__directory):
+            raise FileNotFoundError(f"Directory {self.__directory} not found")
+        if not os.path.isdir(self.__directory):
+            raise NotADirectoryError(f"{self.__directory} is not a directory")
+        parts = Path(self.__directory).parts
         if len(parts) < 4:
             raise ValueError(
-                f"Passed directory path `{self.directory}` must have at least four parts: \
+                f"Passed directory path `{self.__directory}` must have at least four parts: \
                     [businessTask]/[modelType]/[project]/[modelInstanceName]"
             )
-        self.__biz_task, self.__mod_type, self.__project, self.__mod_instance = parts[
-            -4:
-        ]
+        self.__biz_task, self.__mod_type, self.__project, self.__mod_instance_name = (
+            parts[-4:]
+        )
         self.__features_fields = []
         self.__target_field = None
         self.__instance_logic = None
@@ -109,30 +122,38 @@ class ModelInstance(ABC):
 
     def __determine_state(self):
 
-        training_subdir = os.path.join(self.directory, Constants.TRAINING_SUBDIR)
-        model_pickle_file = os.path.join(training_subdir, Constants.TRAINED_MODEL_FILE)
-        training_error_file = os.path.join(
-            training_subdir, Constants.TRAINING_ERROR_LOG
+        self.__training_subdir = os.path.join(
+            self.__directory, Constants.TRAINING_SUBDIR
         )
-        training_in_progress_file = os.path.join(
-            training_subdir, Constants.TRAINING_IN_PROGRESS_LOG
+        self.__model_pickle_file = os.path.join(
+            self.__training_subdir, Constants.TRAINED_MODEL_FILE
+        )
+        self.__training_error_file = os.path.join(
+            self.__training_subdir, Constants.TRAINING_ERROR_LOG
+        )
+        self.__training_in_progress_file = os.path.join(
+            self.__training_subdir, Constants.TRAINING_IN_PROGRESS_LOG
         )
 
-        if not os.path.exists(training_subdir) and os.path.exists(
-            os.path.join(self.directory, Constants.MODEL_DATA_FILE)
+        if not os.path.exists(self.__training_subdir) and os.path.exists(
+            os.path.join(self.__directory, Constants.MODEL_DATA_FILE)
         ):
             self.__state = ModelInstanceStateEnum.DATA_UPLOADED
-        elif os.path.exists(training_subdir) and os.path.exists(model_pickle_file):
+        elif os.path.exists(self.__training_subdir) and os.path.exists(
+            self.__model_pickle_file
+        ):
             self.__state = ModelInstanceStateEnum.TRAINED_READY_TO_SERVE
-        elif os.path.exists(training_subdir) and os.path.exists(training_error_file):
+        elif os.path.exists(self.__training_subdir) and os.path.exists(
+            self.__training_error_file
+        ):
             self.__state = ModelInstanceStateEnum.TRAINING_FAILED
-        elif os.path.exists(training_subdir) and os.path.exists(
-            training_in_progress_file
+        elif os.path.exists(self.__training_subdir) and os.path.exists(
+            self.__training_in_progress_file
         ):
             self.__state = ModelInstanceStateEnum.TRAINING_IN_PROGRESS
         else:
             directory_subtree = ""
-            for root, _, files in os.walk(self.directory):
+            for root, _, files in os.walk(self.__directory):
                 directory_subtree += f"{root}\n"
                 for file in files:
                     directory_subtree += f"  - {file}\n"
@@ -141,16 +162,16 @@ class ModelInstance(ABC):
         self.__load_features_and_target()
 
     def load_training_data(self) -> DataFrame:
-        return pd.read_csv(self.directory + "/" + Constants.MODEL_DATA_FILE)
+        return pd.read_csv(self.__directory + "/" + Constants.MODEL_DATA_FILE)
 
     def __load_features_and_target(self):
         features_fields_file = os.path.join(
-            self.directory, Constants.FEATURES_FIELDS_FILE
+            self.__directory, Constants.FEATURES_FIELDS_FILE
         )
         # read the features fields file
         with open(features_fields_file, "r", encoding="utf8") as f:
             self.__features_fields = f.read().splitlines()
-        target_field_file = os.path.join(self.directory, Constants.TARGET_FIELD_FILE)
+        target_field_file = os.path.join(self.__directory, Constants.TARGET_FIELD_FILE)
         # read the target field file
         with open(target_field_file, "r", encoding="utf8") as f:
             self.__target_field = f.read()
@@ -163,8 +184,55 @@ class ModelInstance(ABC):
     def predict(self):
         return self.__logic.predict()
 
-    def train(self):
-        return self.__logic.train()
+    def train(self) -> tuple[pd.DataFrame, numpy.ndarray, Pipeline, float, float]:
+        # create training dir if not exists and training in progress file
+        if not os.path.exists(self.__training_subdir):
+            os.makedirs(self.__training_subdir)
+        msg = f"Started Training the model instance:`{self.directory}`..."
+        with open(self.__training_in_progress_file, "w", encoding="utf8") as f:
+            f.write(msg)
+        logger.info(msg)
+
+        try:
+            df_metrics, confusion_matrix, pipeline, cv_time, fit_time = (
+                self.__logic.train()
+            )
+
+            # save the trained model to the model pickle file
+            pickle.dump(pipeline, open(self.__model_pickle_file, "wb")
+
+            df_metrics.to_csv(
+                self.__training_subdir + "/metrics.stats", index=False, encoding="utf8"
+            )
+            # save the confusion matrix to a file
+            numpy.savetxt(
+                self.__training_subdir + "/confusion_matrix.stats",
+                confusion_matrix,
+                fmt="%d",
+                delimiter=",",
+            )
+
+            timestats = f"Cross Validation Time: {cv_time} seconds; Fit Time: {fit_time} seconds"
+            with open(
+                self.__training_subdir + "/time.stats", "w", encoding="utf8"
+            ) as f:
+                f.write(timestats)
+
+            logger.info(
+                "Successfully Trained the model instance:`%s`. Model file is saved to `%s`",
+                self.directory,
+                self.__model_pickle_file,
+            )
+            # remove the training in progress file
+            os.remove(self.__training_in_progress_file)
+
+        except Exception as e:
+            err_msg = traceback.format_exc()
+            # write the error to the training error log file
+            with open(self.__training_error_file, "w", encoding="utf8") as f:
+                f.write(err_msg)
+            logging.error("Error training model instance `%s`: %s", str(self), err_msg)
+            raise e
 
     @property
     def __logic(self) -> ModelInterface:
@@ -181,6 +249,10 @@ class ModelInstance(ABC):
         return self.__instance_logic
 
     @property
+    def model_file(self) -> str:
+        return self.__model_pickle_file
+
+    @property
     def task(self) -> str:
         return self.__biz_task
 
@@ -190,7 +262,7 @@ class ModelInstance(ABC):
 
     @property
     def instance(self) -> str:
-        return self.__mod_instance
+        return self.__mod_instance_name
 
     @property
     def project(self) -> str:
@@ -210,6 +282,18 @@ class ModelInstance(ABC):
     def target_field(self) -> str:
         return self.__target_field
 
+    @property
+    def directory(self) -> str:
+        return self.__directory
+
+    @property
+    def training_error_file(self) -> str:
+        return self.__training_error_file
+
+    @property
+    def training_subdir(self) -> str:
+        return self.__training_subdir
+
     # Override the __str__ method to return a string representation of the object
     def __str__(self) -> str:
         return self.to_json()
@@ -219,7 +303,7 @@ class ModelInstance(ABC):
             "task": self.task,
             "type": self.type,
             "project": self.project,
-            "instance": self.instance,
+            "instance_name": self.instance,
             "state": self.state.name,
             "features": self.features_fields,
             "target": self.target_field,
