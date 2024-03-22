@@ -8,14 +8,14 @@ import shutil
 from typing import List
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, Form
-from app_startup import bootstrap_app_state
+from app_startup import bootstrap_app
 import config
 from model_instance import ModelInstance
 from utils import check_valid_biz_task_model_pair
 from task_manager import TasksQueue
 from trainer import TrainingTask
 
-bootstrap_app_state()
+bootstrap_app()
 
 app = FastAPI()
 

@@ -20,7 +20,8 @@ class TestSpamClassifierModelLogic(unittest.TestCase):
 
     # when each test finish delete the train dir
     def tearDown(self):
-        shutil.rmtree(self.data_uploaded_mis.training_subdir)
+        if os.path.exists(self.data_uploaded_mis.training_subdir):
+            shutil.rmtree(self.data_uploaded_mis.training_subdir)
 
     def test_check_trainable(self):
         spam_classifier = SpamClassifierModelLogic(data_uploaded_mis_and_dir()[0])

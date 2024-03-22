@@ -1,5 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 import json
 import logging
 
@@ -41,53 +42,70 @@ class ModelInterface(ABC):
         """
 
     @abstractmethod
-    def predict(self):
-        pass
-
-    @abstractmethod
     def check_trainable(self) -> None:
         pass
+
+
+class AvailableModels:
+
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        """Singleton class to manage the AvailableModels"""
+        if not isinstance(cls._instance, cls):
+            cls._instance = super(AvailableModels, cls).__new__(cls, *args, **kwargs)
+        return cls._instance
+
+    def __init__(self):
+        # Dictionary of available models for serving, i.e. project_name:str -> model_instance : ModelInstance
+        self.servable_dict = {}
+        # Dictionary of available models for training, i.e. project_name:str -> model_instance : ModelInstance
+        self.trainable_dict = {}
+
+    def __str__(self) -> str:
+        return f"Servable Models: {self.servable_dict}\nTrainable Models: {self.trainable_dict}"
 
 
 class ModelInstance(ABC):
 
     @staticmethod
-    def from_train_directory(root_dir: str) -> list[ModelInstance]:
-        # check directory exists
-        if not os.path.exists(root_dir):
-            raise FileNotFoundError(f"Directory {root_dir} not found")
-        model_instances = []
-        root_len = len(root_dir.split(os.path.sep))
+    def __add_to_available_models_if_possible(model_instance: ModelInstance) -> None:
+        if model_instance.is_servable():
+            m = AvailableModels()
+            m.servable_dict[model_instance.identifier] = model_instance
+            print(">>>>>>>>>>>>>>>>>>> " + AvailableModels().__str__())
+            print(">>>>>>>>>>>>>>>>>>> " + m.__str__())
+        elif model_instance.is_trainable():
+            m = AvailableModels()
+            m.trainable_dict[model_instance.identifier] = model_instance
+            print("======= " + AvailableModels().__str__())
+            print("======= " + m.__str__())
 
-        for subdir, _, _ in sorted(os.walk(root_dir), reverse=True):
+    @staticmethod
+    def populate_available_models(dir_name: str) -> AvailableModels:
+        # check directory exists
+        if not os.path.exists(dir_name):
+            raise FileNotFoundError(f"Directory {dir_name} not found")
+
+        root_len = len(dir_name.split(os.path.sep))
+        # walk the directory and get the model instances in reverse date order
+        for subdir, _, _ in sorted(os.walk(dir_name), reverse=True):
             # if the difference between the number of parts in the root and
             # the number of parts in the directory is 4 then add it to the list
             subdirs = subdir.split(os.path.sep)
             if len(subdirs) - root_len == 4:
                 try:
                     model_instance = ModelInstance(subdir)
-                    model_instances.append(model_instance)
+                    ModelInstance.__add_to_available_models_if_possible(model_instance)
                 except Exception as e:
                     logging.error(
-                        "Skipping dir `%s` due to error creating ModelInstanceState: %s",
+                        "Skipping dir `%s` due to error creating ModelInstance: %s",
                         subdir,
                         e,
                     )
-
-        if len(model_instances) == 0:
-            logging.warning("No model instances found in directory `%s`", root_dir)
-        else:
-            # concatenate the model instances into a string
-            msg = ""
-            for model_instance in model_instances:
-                msg += (str(model_instance)) + "\n"
-            logging.info(
-                "Found %s model instances in directory `%s`:\n%s",
-                len(model_instances),
-                root_dir,
-                msg,
-            )
-        return model_instances
+                    traceback.print_exc()
+        logger.info("Available Models: %s", AvailableModels())
+        return AvailableModels()
 
     def __init__(self, directory: str):
         self.__directory = directory
@@ -115,13 +133,15 @@ class ModelInstance(ABC):
         self.__logic.check_trainable()
 
     def is_trainable(self):
-        return self.state in (
-            ModelInstanceStateEnum.DATA_UPLOADED,
-            ModelInstanceStateEnum.TRAINING_IN_PROGRESS,
+        return (
+            self.state == ModelInstanceStateEnum.DATA_UPLOADED
+            or self.state == ModelInstanceStateEnum.TRAINING_IN_PROGRESS
         )
 
-    def __determine_state(self):
+    def is_servable(self):
+        return self.state == ModelInstanceStateEnum.TRAINED_READY_TO_SERVE
 
+    def __determine_state(self):
         self.__training_subdir = os.path.join(
             self.__directory, Constants.TRAINING_SUBDIR
         )
@@ -182,7 +202,12 @@ class ModelInstance(ABC):
         return "".join(x.title() for x in components).strip()
 
     def predict(self):
-        return self.__logic.predict()
+        logger.debug(
+            "Predicting using :`%s`",
+            self.__logic,
+        )
+        pipeline: Pipeline = pickle.load(open(self.__model_pickle_file, "rb"))
+        pipeline.predict()
 
     def train(self) -> tuple[pd.DataFrame, numpy.ndarray, Pipeline, float, float]:
         # create training dir if not exists and training in progress file
@@ -197,9 +222,6 @@ class ModelInstance(ABC):
             df_metrics, confusion_matrix, pipeline, cv_time, fit_time = (
                 self.__logic.train()
             )
-
-            # save the trained model to the model pickle file
-            pickle.dump(pipeline, open(self.__model_pickle_file, "wb")
 
             df_metrics.to_csv(
                 self.__training_subdir + "/metrics.stats", index=False, encoding="utf8"
@@ -218,6 +240,9 @@ class ModelInstance(ABC):
             ) as f:
                 f.write(timestats)
 
+            # save the trained model to the model pickle file
+            pickle.dump(pipeline, open(self.__model_pickle_file, "wb"))
+
             logger.info(
                 "Successfully Trained the model instance:`%s`. Model file is saved to `%s`",
                 self.directory,
@@ -225,7 +250,6 @@ class ModelInstance(ABC):
             )
             # remove the training in progress file
             os.remove(self.__training_in_progress_file)
-
         except Exception as e:
             err_msg = traceback.format_exc()
             # write the error to the training error log file
@@ -293,6 +317,13 @@ class ModelInstance(ABC):
     @property
     def training_subdir(self) -> str:
         return self.__training_subdir
+
+    @property
+    def identifier(self) -> str:
+        """
+        The identifier of the model, i.e. task/type/project
+        """
+        return f"{self.task}/{self.type}/{self.project}"
 
     # Override the __str__ method to return a string representation of the object
     def __str__(self) -> str:

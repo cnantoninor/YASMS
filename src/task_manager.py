@@ -12,7 +12,7 @@ class Task(ABC):
 
     Attributes:
         name (str): The name of the task.
-        model_instance_state (ModelInstanceState): The state of the model instance associated with the task.
+        model_instance_state (ModelInstance): The state of the model instance associated with the task.
     """
 
     def __init__(self, model_instance: ModelInstance):
@@ -35,7 +35,7 @@ class Task(ABC):
         Get the state of the model instance associated with the task.
 
         Returns:
-            ModelInstanceState: The state of the model instance.
+            ModelInstance: The state of the model instance.
         """
         return self._model_instance
 

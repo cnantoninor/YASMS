@@ -106,15 +106,15 @@ class SpamClassifierModelLogic(ModelInterface):
         df_metrics, cm = self.cross_validate(X, y)
         cv_time = time.time() - start_time
 
-        # (re)fit the pipeline
-        pipeline = self.new_pipeline()
+        # (re)fit the pipeline with all the data
+        pipeline = self.get_pipeline()
         start_time = time.time()
         pipeline.fit(X, y)
         fit_time = time.time() - start_time
 
         return df_metrics, cm, pipeline, cv_time, fit_time
 
-    def new_pipeline(self):
+    def get_pipeline(self):
         return Pipeline(
             [
                 ("vect", CountVectorizer()),
@@ -124,7 +124,7 @@ class SpamClassifierModelLogic(ModelInterface):
         )
 
     def cross_validate(self, X, y):  # pylint: disable=invalid-name
-        pipeline = self.new_pipeline()
+        pipeline = self.get_pipeline()
         # Define the metrics to evaluate
         scoring = {
             "accuracy": "accuracy",
@@ -168,12 +168,6 @@ class SpamClassifierModelLogic(ModelInterface):
         cm = confusion_matrix(y_test, y_pred)
 
         return metrics_df, cm
-
-    def predict(self):
-        logger.info(
-            "Predicting using the spam classifier model instance:`%s`",
-            self.model_instance,
-        )
 
     @property
     def model_instance(self):
