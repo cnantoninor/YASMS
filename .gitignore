@@ -17,8 +17,8 @@ notebook/**/*.csv
 **/.ipynb_checkpoints
 data/*
 src/app.log
-src/uvicorn.log
-src/uvicorn.err.log
+**/uvicorn.log
+**/uvicorn.err.log
 notebook/.ipynb_checkpoints
 
 app.log

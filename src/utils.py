@@ -13,7 +13,7 @@ def is_test_environment():
     if UtilsData.test_environment is None:
         UtilsData.test_environment = False
         for module in sys.modules.values():
-            if module.__name__ in ["unittest", "pytest"]:
+            if module.__name__ in ["pytest"]:
                 UtilsData.test_environment = True
     return UtilsData.test_environment
 

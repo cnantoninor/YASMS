@@ -1,3 +1,3 @@
 #!/bin/bash
-
-coverage run -m pytest && coverage report
+export PYTHONPATH="${PYTHONPATH}:src"
+pytest --cov=wl-ml-server --cov-report html
