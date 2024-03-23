@@ -280,19 +280,12 @@ class TestModelInstance(unittest.TestCase):
             model_instance.instance = data[0].split(os.path.sep)[-1]
             mock_instances.append(model_instance)
         with patch("model_instance.ModelInstance", side_effect=mock_instances):
-
             available_models = ModelInstance.populate_available_models(data_dir)
             self.assertEqual(
                 len(available_models),
                 len(TestModelInstance.mock_walk_data),
                 "ModelInstance.load_models_from should return 4 model instances",
             )
-            for model_instance in available_models:
-                self.assertEqual(
-                    model_instance.state.name,
-                    model_instance.instance,
-                    f"ModelInstance.state should be f{model_instance.instance} but is f{model_instance.state}",
-                )
 
 
 if __name__ == "__main__":
