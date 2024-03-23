@@ -24,3 +24,4 @@ notebook/.ipynb_checkpoints
 app.log
 
 .coverage
+htmlcov
