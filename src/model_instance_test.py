@@ -3,7 +3,7 @@ import unittest
 import tempfile
 
 from mock import MagicMock, patch
-from model_instance import AvailableModels, ModelInstance, ModelInstanceStateEnum
+from model_instance import ModelInstance, ModelInstanceStateEnum, available_models
 from config import Constants
 from utils_test import (
     test_data_path,
@@ -17,6 +17,7 @@ from utils_test import (
 
 class TestModelInstance(unittest.TestCase):
     def setUp(self):
+        available_models.clear()
         self.test_dir = tempfile.TemporaryDirectory()
         self.biz_task = Constants.BIZ_TASK_SPAM
         self.mod_type = "test_model"
@@ -153,18 +154,32 @@ class TestModelInstance(unittest.TestCase):
 
     def test_available_models_is_singleton(self):
         # Test that AvailableModels is a singleton
-        available_models = AvailableModels()
-        available_models2 = AvailableModels()
-        self.assertIs(available_models, available_models2)
+        mi1 = MagicMock()
+        mi1.identifier = "test1"
+        mi1.is_servable = MagicMock(return_value=True)
+        mi2 = MagicMock()
+        mi2.identifier = "test2"
+        mi2.is_servable = MagicMock(return_value=False)
+        mi2.is_trainable = MagicMock(return_value=True)
+
+        avail_models = available_models
+        avail_models.add_if_makes_sense(mi1)
+        avail_models2 = available_models
+        avail_models.add_if_makes_sense(mi2)
+        self.assertEqual(len(available_models), 2)
+        self.assertEqual(len(available_models.servable), 1)
+        self.assertEqual(len(available_models.trainable), 1)
+        self.assertIs(avail_models, avail_models2)
+        self.assertEqual(len(available_models), len(avail_models2))
+        self.assertEqual(len(available_models), len(avail_models))
 
     def test_from_train_directory(self):
-        # Test from_train_directory when the directory is a training directory
         path = test_data_path.as_posix().replace("/", os.path.sep)
         available_models = ModelInstance.populate_available_models(path)
-        trainable_models = available_models.trainable_dict.values()
+        trainable_models = available_models.trainable.values()
         self.assertEqual(
             len(trainable_models),
-            4,
+            1,  # only one trainable models because they share the same identifier in test_data directory: spam_classifier/test_model/test_project
             "ModelInstance.from_train_directory should return 4 model instances",
         )
 
@@ -256,31 +271,28 @@ class TestModelInstance(unittest.TestCase):
 
     @patch("os.path.exists", return_value=True)
     @patch("os.walk", return_value=mock_walk_data)
-    def test_load_models_from(self, mock_exists, mock_walk):
+    def test_populate_available_models(self, mock_exists, mock_walk):
         data_dir = "data_dir"
         mock_instances = []
         for data in TestModelInstance.mock_walk_data:
-            mis = MagicMock()
-            mis.state = data[1][0]
-            mis.instance = data[0].split(os.path.sep)[-1]
-            mock_instances.append(mis)
+            model_instance = MagicMock()
+            model_instance.state = data[1][0]
+            model_instance.instance = data[0].split(os.path.sep)[-1]
+            mock_instances.append(model_instance)
         with patch("model_instance.ModelInstance", side_effect=mock_instances):
 
-            mis_list = ModelInstance.populate_available_models(data_dir)
+            available_models = ModelInstance.populate_available_models(data_dir)
             self.assertEqual(
-                len(mis_list),
+                len(available_models),
                 len(TestModelInstance.mock_walk_data),
                 "ModelInstance.load_models_from should return 4 model instances",
             )
-            for mis in mis_list:
-                print(mis.state)
-                print(mis.state.name)
-        # for mis in mis_list:
-        #     self.assertEqual(
-        #         mis.state.name,
-        #         mis.instance,
-        #         f"ModelInstance.state should be f{mis.instance} but is f{mis.state}",
-        #     )
+            for model_instance in available_models:
+                self.assertEqual(
+                    model_instance.state.name,
+                    model_instance.instance,
+                    f"ModelInstance.state should be f{model_instance.instance} but is f{model_instance.state}",
+                )
 
 
 if __name__ == "__main__":

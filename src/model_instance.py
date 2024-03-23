@@ -1,6 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+import datetime
+from itertools import chain
 import json
 import logging
 
@@ -46,43 +47,57 @@ class ModelInterface(ABC):
         pass
 
 
-class AvailableModels:
-
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        """Singleton class to manage the AvailableModels"""
-        if not isinstance(cls._instance, cls):
-            cls._instance = super(AvailableModels, cls).__new__(cls, *args, **kwargs)
-        return cls._instance
+class _AvailableModels:
 
     def __init__(self):
         # Dictionary of available models for serving, i.e. project_name:str -> model_instance : ModelInstance
-        self.servable_dict = {}
+        self._servable_dict = {}
         # Dictionary of available models for training, i.e. project_name:str -> model_instance : ModelInstance
-        self.trainable_dict = {}
+        self._trainable_dict = {}
+
+    def __iter__(self):
+        return chain(self._servable_dict.values(), self._trainable_dict.values())
+
+    # size of the available models
+    def __len__(self):
+        return len(self._servable_dict) + len(self._trainable_dict)
 
     def __str__(self) -> str:
-        return f"Servable Models: {self.servable_dict}\nTrainable Models: {self.trainable_dict}"
+        return f"Servable Models: {self._servable_dict}\nTrainable Models: {self._trainable_dict}"
+
+    def add_if_makes_sense(self, model_instance: ModelInstance) -> None:
+        if model_instance.is_servable():
+            self._servable_dict[model_instance.identifier] = model_instance
+            logging.debug(f"Added model instance `{model_instance}` as it is servable")
+        elif model_instance.is_trainable():
+            self._trainable_dict[model_instance.identifier] = model_instance
+            logging.debug(f"Added model instance `{model_instance}` as it is trainable")
+        else:
+            logging.warning(
+                "NOT adding model instance `%s` as it isn't either servable or trainable",
+                model_instance,
+            )
+
+    @property
+    def servable(self):
+        return self._servable_dict
+
+    @property
+    def trainable(self):
+        return self._trainable_dict
+
+    def clear(self):
+        self._servable_dict.clear()
+        self._trainable_dict.clear()
+
+
+available_models = _AvailableModels()
 
 
 class ModelInstance(ABC):
 
     @staticmethod
-    def __add_to_available_models_if_possible(model_instance: ModelInstance) -> None:
-        if model_instance.is_servable():
-            m = AvailableModels()
-            m.servable_dict[model_instance.identifier] = model_instance
-            print(">>>>>>>>>>>>>>>>>>> " + AvailableModels().__str__())
-            print(">>>>>>>>>>>>>>>>>>> " + m.__str__())
-        elif model_instance.is_trainable():
-            m = AvailableModels()
-            m.trainable_dict[model_instance.identifier] = model_instance
-            print("======= " + AvailableModels().__str__())
-            print("======= " + m.__str__())
-
-    @staticmethod
-    def populate_available_models(dir_name: str) -> AvailableModels:
+    def populate_available_models(dir_name: str) -> _AvailableModels:
         # check directory exists
         if not os.path.exists(dir_name):
             raise FileNotFoundError(f"Directory {dir_name} not found")
@@ -96,16 +111,16 @@ class ModelInstance(ABC):
             if len(subdirs) - root_len == 4:
                 try:
                     model_instance = ModelInstance(subdir)
-                    ModelInstance.__add_to_available_models_if_possible(model_instance)
+                    available_models.add_if_makes_sense(model_instance)
                 except Exception as e:
                     logging.error(
-                        "Skipping dir `%s` due to error creating ModelInstance: %s",
+                        "Skipping dir `%s` due to error creating ModelInstance: %s\n%s",
                         subdir,
                         e,
+                        traceback.format_exc(),  # This will log the full stack trace
                     )
-                    traceback.print_exc()
-        logger.info("Available Models: %s", AvailableModels())
-        return AvailableModels()
+        logger.info("Available Models: %s", str(available_models))
+        return available_models
 
     def __init__(self, directory: str):
         self.__directory = directory

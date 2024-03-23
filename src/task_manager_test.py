@@ -1,7 +1,7 @@
 import time
 import unittest
 from unittest.mock import patch
-from task_manager import Task, TasksQueue, TasksExecutor
+from task_manager import Task, tasks_queue, TasksExecutor
 
 
 class DummyTask(Task):
@@ -17,8 +17,11 @@ class TestTask(unittest.TestCase):
 
 
 class TestTasksQueue(unittest.TestCase):
+
+    def setUp(self):
+        tasks_queue.clear()
+
     def test_publish(self):
-        tasks_queue = TasksQueue()
         task = DummyTask(None)
         with patch("logging.info") as mocked_log:
             tasks_queue.submit(task)
@@ -26,21 +29,22 @@ class TestTasksQueue(unittest.TestCase):
             mocked_log.assert_called_once_with("Adding task to queue: `%s`", task)
 
     def test_size(self):
-        tasks_queue = TasksQueue()
         self.assertEqual(tasks_queue.size, 0)
         task = DummyTask(None)
         tasks_queue.submit(task)
         self.assertEqual(tasks_queue.size, 1)
 
     def test_singleton(self):
-        tasks_queue_1 = TasksQueue()
-        tasks_queue_2 = TasksQueue()
+        tasks_queue_1 = tasks_queue
+        tasks_queue_2 = tasks_queue
         self.assertEqual(tasks_queue_1, tasks_queue_2)
 
 
 class TestSubscriber(unittest.TestCase):
+    def setUp(self):
+        tasks_queue.clear()
+
     def test_run(self):
-        tasks_queue = TasksQueue()
         self.assertEqual(tasks_queue.size, 0)
         task = DummyTask(None)
         with patch("logging.info") as mocked_log:

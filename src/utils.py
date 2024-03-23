@@ -1,21 +1,6 @@
-from dataclasses import dataclass
 from importlib import import_module
-import sys
 from config import Constants
-
-
-@dataclass
-class UtilsData:
-    test_environment = None
-
-
-def is_test_environment():
-    if UtilsData.test_environment is None:
-        UtilsData.test_environment = False
-        for module in sys.modules.values():
-            if module.__name__ in ["pytest"]:
-                UtilsData.test_environment = True
-    return UtilsData.test_environment
+from environment import is_test_environment
 
 
 def check_valid_biz_task_model_pair(biz_task: str, model_type: str):

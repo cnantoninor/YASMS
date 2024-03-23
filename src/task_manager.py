@@ -49,15 +49,7 @@ class Task(ABC):
         return f"{self.__class__.__name__}::{self.name}"
 
 
-class TasksQueue:
-
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        """Singleton class to manage the tasks queue"""
-        if not isinstance(cls._instance, cls):
-            cls._instance = super(TasksQueue, cls).__new__(cls, *args, **kwargs)
-        return cls._instance
+class _TasksQueue:
 
     def __init__(self):
         self.tasks = queue.Queue(maxsize=0)
@@ -68,6 +60,12 @@ class TasksQueue:
         assert task.name is not None
         logging.info("Adding task to queue: `%s`", task)
         self.tasks.put_nowait(task)
+
+    def __len__(self):
+        return self.size
+
+    def clear(self):
+        self.tasks.queue.clear()
 
     @property
     def size(self):
@@ -82,6 +80,9 @@ class TasksQueue:
         return [str(task) for task in list(self.tasks.queue)]
 
 
+tasks_queue = _TasksQueue()
+
+
 class TasksExecutor:
 
     # make TasksExecutor a singleton
@@ -92,21 +93,20 @@ class TasksExecutor:
             cls._instance = super(TasksExecutor, cls).__new__(cls, *args, **kwargs)
         return cls._instance
 
-    def __init__(self, tasks_queue: TasksQueue = TasksQueue()):
-        self.tasks_queue = tasks_queue
+    def __init__(self):
         self.thread = threading.Thread(target=self.run)
         self.thread.daemon = True
         self.thread.start()
 
     @property
     def queue(self):
-        return self.tasks_queue
+        return tasks_queue
 
     def run(self):
         while True:
             try:
                 # Blocking call
-                task = self.tasks_queue.tasks.get(block=True, timeout=None)
+                task = tasks_queue.tasks.get(block=True, timeout=None)
                 logging.info("Executing task: `%s`", task)
                 task.execute()
                 logging.info("Task executed succesfully: `%s`", task)
@@ -115,8 +115,8 @@ class TasksExecutor:
                 time.sleep(5)
             finally:
                 # free the thread resource from eventual poisoned tasks
-                self.tasks_queue.tasks.task_done()
+                tasks_queue.tasks.task_done()
                 logging.info(
                     "Removed task due to the previous error. Remaining tasks in queue: %s",
-                    self.tasks_queue.size,
+                    tasks_queue.size,
                 )

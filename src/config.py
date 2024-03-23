@@ -3,8 +3,9 @@ from logging.handlers import RotatingFileHandler
 import os
 from dataclasses import dataclass
 from pathlib import Path
-import sys
 from dotenv import load_dotenv
+
+from environment import is_test_environment
 
 load_dotenv()
 
@@ -25,17 +26,15 @@ logger.setLevel(logging.INFO)
 logger.addHandler(log_handler)
 
 # If running in a test environment, also log to the console AND SET debug level
-for module in sys.modules.values():
-    if module.__name__ in ["unittest", "pytest"]:
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-        logger.addHandler(console_handler)
-        logger.setLevel(logging.DEBUG)
+if is_test_environment():
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    logger.addHandler(console_handler)
+    logger.setLevel(logging.DEBUG)
 
 src_path = os.path.dirname(os.path.abspath(__file__))
 root_path: Path = Path(__file__).parent.parent
 data_path: Path = root_path / "data"
-train_data_path: Path = data_path / "train"
 
 
 @dataclass

@@ -12,7 +12,7 @@ from app_startup import bootstrap_app
 import config
 from model_instance import ModelInstance
 from utils import check_valid_biz_task_model_pair
-from task_manager import TasksQueue
+from task_manager import tasks_queue
 from trainer import TrainingTask
 
 bootstrap_app()
@@ -78,7 +78,7 @@ async def upload_train_data(
     contents = await train_data.read()
 
     uploaded_data_dir = (
-        config.train_data_path.joinpath(biz_task)
+        config.data_path.joinpath(biz_task)
         .joinpath(mod_type)
         .joinpath(project)
         .joinpath(determine_model_instance_name_date_path())
@@ -100,7 +100,7 @@ async def upload_train_data(
     __check_csv_file(uploaded_data_dir, features_fields, target_field)
     __clean_train_data_dir_if_needed(uploaded_data_dir.parent)
     model_instance = ModelInstance(uploaded_data_dir.as_posix())
-    TasksQueue().submit(TrainingTask(model_instance))
+    tasks_queue.submit(TrainingTask(model_instance))
 
     logging.info(
         """Successfully uploaded train data and submitted train task for ModelInstance: `%s`""",

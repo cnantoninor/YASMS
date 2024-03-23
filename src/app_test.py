@@ -61,12 +61,12 @@ class TestApp(unittest.TestCase):
     def assert_upload_response(self, response):
         print(response.json())
         assert response.status_code == 200
-        uploaded_train_data_path = response.json()["path"]
-        assert uploaded_train_data_path is not None
-        assert os.path.exists(uploaded_train_data_path)
+        uploaded_data_path = response.json()["path"]
+        assert uploaded_data_path is not None
+        assert os.path.exists(uploaded_data_path)
         now = datetime.now()
-        assert now.strftime("%Y%m%d_%H-%M") in uploaded_train_data_path
-        mis = ModelInstance(uploaded_train_data_path)
+        assert now.strftime("%Y%m%d_%H-%M") in uploaded_data_path
+        mis = ModelInstance(uploaded_data_path)
         self.assertEqual(mis.state, ModelInstanceStateEnum.DATA_UPLOADED)
         self.assertEqual(mis.task, config.Constants.BIZ_TASK_SPAM)
         self.assertEqual(mis.features_fields, ["Testo"])
