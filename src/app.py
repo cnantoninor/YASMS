@@ -1,5 +1,6 @@
 from datetime import datetime
 import io
+import json
 import logging
 import os
 import glob
@@ -10,7 +11,7 @@ import pandas as pd
 from fastapi import FastAPI, File, UploadFile, Form
 from app_startup import bootstrap_app
 import config
-from model_instance import ModelInstance
+from model_instance import ModelInstance, available_models
 from utils import check_valid_biz_task_model_pair
 from task_manager import tasks_queue
 from trainer import TrainingTask
@@ -20,8 +21,21 @@ bootstrap_app()
 app = FastAPI()
 
 
-@app.get("/models")
-async def get_models_state():
+@app.get("/logs")
+async def get_app_log():
+    with open(config.LOG_FILE) as f:
+        applog = f.read().split("\n")
+
+    return {f"{config.LOG_FILE}": applog}
+
+
+@app.get("/tasks/queue")
+async def get_tasks_queue():
+    return {"tasks_queue": tasks_queue.to_json()}
+
+
+@app.get("/models/available")
+async def get_available_models():
     """
     Retrieves the state of all the model instances.
     Torna solo ultima o quella attiva
@@ -29,19 +43,19 @@ async def get_models_state():
     Returns:
         dict: A dictionary containing the state of all the model instances.
     """
-    pass
+    return {"available_models": available_models.to_json()}
 
 
-@app.get("/models/registered_types_and_names")
-async def get_available_biz_task_and_names():
+@app.get("/models/registered_types")
+async def get_registered_types():
     """
-    Retrieves the available model types and model names registered in the server.
+    Retrieves the available business tasks and model types registered in the server.
 
     Returns:
-        dict: A dictionaries containing the model types and names
-        that are currently available and registered in the server.
+        json: A json containing the available business tasks and model types.
+
     """
-    pass
+    return {"available_biztasks_model_pair": config.Constants.VALID_BIZ_TASK_MODEL_PAIR}
 
 
 @app.post("/models/{biz_task}/{mod_type}/{project}/upload_train_data")

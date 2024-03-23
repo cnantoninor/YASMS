@@ -90,6 +90,12 @@ class _AvailableModels:
         self._servable_dict.clear()
         self._trainable_dict.clear()
 
+    def to_json(self):
+        return {
+            "servable": {k: v.to_json() for k, v in self._servable_dict.items()},
+            "trainable": {k: v.to_json() for k, v in self._trainable_dict.items()},
+        }
+
 
 available_models = _AvailableModels()
 
@@ -340,6 +346,43 @@ class ModelInstance(ABC):
         """
         return f"{self.task}/{self.type}/{self.project}"
 
+    @property
+    def stats_metrics(self) -> dict:
+        if not self.is_servable():
+            return None
+        if not os.path.exists(self.__training_subdir + "/metrics.stats"):
+            msg = f"Metrics file not found for model instance in `{self.__directory}`"
+            logger.warning(msg)
+            return msg
+
+        return pd.read_csv(self.__training_subdir + "/metrics.stats").to_dict()
+
+    @property
+    def stats_confusion_matrix(self) -> str:
+        if not self.is_servable():
+            return None
+        if not os.path.exists(self.__training_subdir + "/confusion_matrix.stats"):
+            msg = f"Confusion Matrix file not found for model instance in `{self.__directory}`"
+            logger.warning(msg)
+            return msg
+
+        confusion_matrix = numpy.loadtxt(
+            self.__training_subdir + "/confusion_matrix.stats", delimiter=","
+        )
+        return json.dumps(confusion_matrix.tolist())
+
+    @property
+    def stats_time(self) -> dict:
+        if not self.is_servable():
+            return None
+        if not os.path.exists(self.__training_subdir + "/time.stats"):
+            msg = f"Time file not found for model instance in `{self.__directory}`"
+            logger.warning(msg)
+            return msg
+
+        with open(self.__training_subdir + "/time.stats", "r", encoding="utf8") as f:
+            return f.read()
+
     # Override the __str__ method to return a string representation of the object
     def __str__(self) -> str:
         return self.to_json()
@@ -353,5 +396,10 @@ class ModelInstance(ABC):
             "state": self.state.name,
             "features": self.features_fields,
             "target": self.target_field,
+            "stats": {
+                "metrics": self.stats_metrics,
+                "confusion_matrix": self.stats_confusion_matrix,
+                "time": self.stats_time,
+            },
         }
         return json.dumps(data)

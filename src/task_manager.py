@@ -1,3 +1,4 @@
+from datetime import datetime
 import queue
 import threading
 import logging
@@ -78,6 +79,13 @@ class _TasksQueue:
     @property
     def task_list_str(self) -> str:
         return [str(task) for task in list(self.tasks.queue)]
+
+    def to_json(self):
+        return {
+            "time": datetime.now().isoformat(),
+            "tasks": self.task_list_str,
+            "size": self.size,
+        }
 
 
 tasks_queue = _TasksQueue()
