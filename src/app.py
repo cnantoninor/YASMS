@@ -1,6 +1,5 @@
 from datetime import datetime
 import io
-import json
 import logging
 import os
 import glob
@@ -11,7 +10,7 @@ import pandas as pd
 from fastapi import FastAPI, File, UploadFile, Form
 from app_startup import bootstrap_app
 import config
-from model_instance import ModelInstance, available_models
+from model_instance import ModelInstance, Models
 from utils import check_valid_biz_task_model_pair
 from task_manager import tasks_queue
 from trainer import TrainingTask
@@ -24,9 +23,23 @@ app = FastAPI()
 @app.get("/logs")
 async def get_app_log():
     with open(config.LOG_FILE) as f:
-        applog = f.read().split("\n")
+        applog = f.read().split("\n").reverse()
 
-    return {f"{config.LOG_FILE}": applog}
+    uvicorn_log = []
+    if os.path.exists(config.UVICORN_LOG_FILE):
+        with open(config.UVICORN_LOG_FILE) as f:
+            uvicorn_log = f.read().split("\n")[::-1]
+
+    uvicorn_err_log = []
+    if os.path.exists(config.UVICORN_ERR_LOG_FILE):
+        with open(config.UVICORN_ERR_LOG_FILE) as f:
+            uvicorn_err_log = f.read().split("\n").reverse()
+
+    return {
+        f"{config.LOG_FILE}": applog,
+        "uvicorn.log": uvicorn_log,
+        "uvicorn.err.log": uvicorn_err_log,
+    }
 
 
 @app.get("/tasks/queue")
@@ -34,16 +47,25 @@ async def get_tasks_queue():
     return {"tasks_queue": tasks_queue.to_json()}
 
 
-@app.get("/models/available")
-async def get_available_models():
+@app.get("/models/active")
+async def get_active_models():
     """
-    Retrieves the state of all the model instances.
-    Torna solo ultima o quella attiva
 
-    Returns:
+    # NOT IMPLEMENTED YET
+
+    """
+    raise NotImplementedError("This endpoint is not implemented yet.")
+
+
+@app.get("/models")
+async def get_all_models():
+    """
+    Retrieves the details of all the models.
+
+    # Returns:
         dict: A dictionary containing the state of all the model instances.
     """
-    return {"available_models": available_models.to_json()}
+    return {"models": Models(config.data_path.as_posix()).to_json(verbose=True)}
 
 
 @app.get("/models/registered_types")
@@ -68,23 +90,38 @@ async def upload_train_data(
     target_field: str = Form(...),
 ):
     """
-    Uploads the CSV training data file to the specified model type and model name directory.
+    Uploads the CSV training data file to the specified model type and model name directory and submit an asynchrounous training task.
 
-    Args:
-        train_data (UploadFile): The CSV file to be uploaded.
-        biz_task (str): The business task, e.g. spam_classifier.
-        mod_type (str): The type of the model, e.g. KNN, SVM, etc..
-        project (str): The name of the project.
-        features_fields (List[str]): the list of the fields in the
+    ## Args:
+        - biz_task (str): The business task, e.g. spam_classifier.
+
+        - mod_type (str): The type of the model, e.g. KNN, SVM, etc..
+
+        - project (str): The name of the project.
+
+        - train_data (UploadFile): The CSV file to be uploaded, it can be zipped.
+
+        - features_fields (List[str]): the list of the fields in the
             CSV file `train_data` that will be used as features. Existence of fields will be checked.
-        target_field (str): the field in the
+
+        - target_field (str): the field in the
             CSV file `train_data` that will be used as target. Existence of the field will be checked.
 
-    Returns:
-        dict: A dictionary containing the uploaded train data path.
+    ## Returns:
+        - dict: A dictionary containing the uploaded train data path.
 
-    Raises:
-        Error if the file is not a CSV or if the file does not contain the required fields.
+    ## Raises:
+        - If the file is not a CSV or zip file, an error is raised.
+
+        - If the file does not contain the indicated features and target fields, an error is raised.
+
+        - If the fields are in a wrong format in respect or a specific biz_task rules isn't respected, an error is raised.
+
+    ## Specific biz tasks checks for the fields:
+        - *spam_classifier*: the *target_field* should have 0 or 1. The features fields should be strings.
+            Exception: if the *target_field* name is `Stato Workflow` then the service will automatically convert Y/N/D values:
+            {"Y": 1, "D": 0} and remove the rows with `N` value.
+
     """
 
     check_valid_biz_task_model_pair(biz_task, mod_type)

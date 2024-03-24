@@ -125,6 +125,6 @@ class TasksExecutor:
                 # free the thread resource from eventual poisoned tasks
                 tasks_queue.tasks.task_done()
                 logging.info(
-                    "Removed task due to the previous error. Remaining tasks in queue: %s",
+                    "Removed task. Remaining tasks in queue: %s",
                     tasks_queue.size,
                 )

@@ -11,6 +11,9 @@ load_dotenv()
 
 # Configure logging
 LOG_FILE = "app.log"
+UVICORN_LOG_FILE = "uvicorn.log"
+UVICORN_LOG_ERR_FILE = "uvicorn.err.log"
+
 LOG_ROTATION_INTERVAL = 10  # Number of log files before rotation
 
 # Create a handler that rotates log files when they reach a certain size

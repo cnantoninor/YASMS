@@ -3,7 +3,7 @@ import unittest
 import tempfile
 
 from mock import MagicMock, patch
-from model_instance import ModelInstance, ModelInstanceStateEnum, available_models
+from model_instance import ModelInstance, ModelInstanceStateEnum, Models
 from config import Constants
 from utils_test import (
     test_data_path,
@@ -17,7 +17,6 @@ from utils_test import (
 
 class TestModelInstance(unittest.TestCase):
     def setUp(self):
-        available_models.clear()
         self.test_dir = tempfile.TemporaryDirectory()
         self.biz_task = Constants.BIZ_TASK_SPAM
         self.mod_type = "test_model"
@@ -150,37 +149,51 @@ class TestModelInstance(unittest.TestCase):
     def test_from_train_directory__invalid_should_raise_file_not_found(self):
         # Test from_train_directory when the directory does not exist
         with self.assertRaises(FileNotFoundError):
-            ModelInstance.populate_available_models("/sdfsdfdsf")
+            Models("/sdfsdfdsf")
 
-    def test_available_models_is_singleton(self):
-        # Test that AvailableModels is a singleton
-        mi1 = MagicMock()
-        mi1.identifier = "test1"
-        mi1.is_servable = MagicMock(return_value=True)
-        mi2 = MagicMock()
-        mi2.identifier = "test2"
-        mi2.is_servable = MagicMock(return_value=False)
-        mi2.is_trainable = MagicMock(return_value=True)
+    # def test_available_models_is_singleton(self):
+    #     # Test that AvailableModels is a singleton
+    #     mi1 = MagicMock()
+    #     mi1.identifier = "test1"
+    #     mi1.is_servable = MagicMock(return_value=True)
+    #     mi2 = MagicMock()
+    #     mi2.identifier = "test2"
+    #     mi2.is_servable = MagicMock(return_value=False)
+    #     mi2.is_trainable = MagicMock(return_value=True)
 
-        avail_models = available_models
-        avail_models.add_if_makes_sense(mi1)
-        avail_models2 = available_models
-        avail_models.add_if_makes_sense(mi2)
-        self.assertEqual(len(available_models), 2)
-        self.assertEqual(len(available_models.servable), 1)
-        self.assertEqual(len(available_models.trainable), 1)
-        self.assertIs(avail_models, avail_models2)
-        self.assertEqual(len(available_models), len(avail_models2))
-        self.assertEqual(len(available_models), len(avail_models))
+    #     avail_models = available_models
+    #     avail_models.add_if_makes_sense(mi1)
+    #     avail_models2 = available_models
+    #     avail_models.add_if_makes_sense(mi2)
+    #     self.assertEqual(len(available_models), 2)
+    #     self.assertEqual(len(available_models.servable), 1)
+    #     self.assertEqual(len(available_models.trainable), 1)
+    #     self.assertIs(avail_models, avail_models2)
+    #     self.assertEqual(len(available_models), len(avail_models2))
+    #     self.assertEqual(len(available_models), len(avail_models))
 
     def test_from_train_directory(self):
-        path = test_data_path.as_posix().replace("/", os.path.sep)
-        available_models = ModelInstance.populate_available_models(path)
-        trainable_models = available_models.trainable.values()
+        data_dir = test_data_path.as_posix().replace("/", os.path.sep)
+        models = Models(data_dir)
+        trainable_models = models.trainable.values()
+        servable_models = models.servable.values()
+        other_models = models.other.values()
         self.assertEqual(
             len(trainable_models),
-            1,  # only one trainable models because they share the same identifier in test_data directory: spam_classifier/test_model/test_project
-            "ModelInstance.from_train_directory should return 4 model instances",
+            2,
+            "Models should return 2 trainable model instances",
+        )
+
+        self.assertEqual(
+            len(servable_models),
+            1,
+            "Models should return 1 servable model instances",
+        )
+
+        self.assertEqual(
+            len(other_models),
+            1,
+            "Models should return 1 `other` model instances",
         )
 
         for model in trainable_models:
@@ -271,7 +284,7 @@ class TestModelInstance(unittest.TestCase):
 
     @patch("os.path.exists", return_value=True)
     @patch("os.walk", return_value=mock_walk_data)
-    def test_populate_available_models(self, mock_exists, mock_walk):
+    def test_active_models(self, mock_exists, mock_walk):
         data_dir = "data_dir"
         mock_instances = []
         for data in TestModelInstance.mock_walk_data:
@@ -280,9 +293,9 @@ class TestModelInstance(unittest.TestCase):
             model_instance.instance = data[0].split(os.path.sep)[-1]
             mock_instances.append(model_instance)
         with patch("model_instance.ModelInstance", side_effect=mock_instances):
-            available_models = ModelInstance.populate_available_models(data_dir)
+            models = Models(data_dir)
             self.assertEqual(
-                len(available_models),
+                len(models),
                 len(TestModelInstance.mock_walk_data),
                 "ModelInstance.load_models_from should return 4 model instances",
             )

@@ -17,6 +17,7 @@ from pandas import DataFrame
 from sklearn.pipeline import Pipeline
 from config import Constants
 
+from environment import is_test_environment
 from utils import import_class_from_string
 
 logger = logging.getLogger(__name__)
@@ -47,23 +48,30 @@ class ModelInterface(ABC):
         pass
 
 
-class _AvailableModels:
+class Models:
 
-    def __init__(self):
-        # Dictionary of available models for serving, i.e. project_name:str -> model_instance : ModelInstance
+    def __init__(self, root_data_dir: str):
+        # Dictionary of models for serving, i.e. project_name:str -> model_instance : ModelInstance
         self._servable_dict = {}
-        # Dictionary of available models for training, i.e. project_name:str -> model_instance : ModelInstance
+        # Dictionary of models for training, i.e. project_name:str -> model_instance : ModelInstance
         self._trainable_dict = {}
+        # Dictionary of models in other states, i.e. project_name:str -> model_instance : ModelInstance
+        self._other_dict = {}
+
+        self._populate(root_data_dir)
+        self._root_data_dir = root_data_dir
 
     def __iter__(self):
         return chain(self._servable_dict.values(), self._trainable_dict.values())
 
-    # size of the available models
+    # size of the models
     def __len__(self):
-        return len(self._servable_dict) + len(self._trainable_dict)
+        return (
+            len(self._servable_dict) + len(self._trainable_dict) + len(self._other_dict)
+        )
 
     def __str__(self) -> str:
-        return f"Servable Models: {self._servable_dict}\nTrainable Models: {self._trainable_dict}"
+        return json.dumps(self.to_json())
 
     def add_if_makes_sense(self, model_instance: ModelInstance) -> None:
         if model_instance.is_servable():
@@ -73,14 +81,22 @@ class _AvailableModels:
             self._trainable_dict[model_instance.identifier] = model_instance
             logging.debug(f"Added model instance `{model_instance}` as it is trainable")
         else:
-            logging.warning(
-                "NOT adding model instance `%s` as it isn't either servable or trainable",
-                model_instance,
+            self._other_dict[model_instance.identifier] = model_instance
+            logging.debug(
+                f"Added model instance `{model_instance}` as it is in other state"
             )
+
+    @property
+    def root_data_dir(self):
+        return self._root_data_dir
 
     @property
     def servable(self):
         return self._servable_dict
+
+    @property
+    def other(self):
+        return self._other_dict
 
     @property
     def trainable(self):
@@ -89,21 +105,24 @@ class _AvailableModels:
     def clear(self):
         self._servable_dict.clear()
         self._trainable_dict.clear()
+        self._other_dict.clear()
 
-    def to_json(self):
-        return {
-            "servable": {k: v.to_json() for k, v in self._servable_dict.items()},
-            "trainable": {k: v.to_json() for k, v in self._trainable_dict.items()},
-        }
+    def to_json(self, verbose: bool = False):
 
+        if not verbose:
+            return {
+                "servable": {k: str(v) for k, v in self._servable_dict.items()},
+                "trainable": {k: str(v) for k, v in self._trainable_dict.items()},
+                "other": {k: str(v) for k, v in self._other_dict.items()},
+            }
+        else:
+            return {
+                "servable": {k: v.to_json() for k, v in self._servable_dict.items()},
+                "trainable": {k: v.to_json() for k, v in self._trainable_dict.items()},
+                "other": {k: v.to_json() for k, v in self._other_dict.items()},
+            }
 
-available_models = _AvailableModels()
-
-
-class ModelInstance(ABC):
-
-    @staticmethod
-    def populate_available_models(dir_name: str) -> _AvailableModels:
+    def _populate(self, dir_name: str) -> Models:
         # check directory exists
         if not os.path.exists(dir_name):
             raise FileNotFoundError(f"Directory {dir_name} not found")
@@ -117,7 +136,7 @@ class ModelInstance(ABC):
             if len(subdirs) - root_len == 4:
                 try:
                     model_instance = ModelInstance(subdir)
-                    available_models.add_if_makes_sense(model_instance)
+                    self.add_if_makes_sense(model_instance)
                 except Exception as e:
                     logging.error(
                         "Skipping dir `%s` due to error creating ModelInstance: %s\n%s",
@@ -125,8 +144,11 @@ class ModelInstance(ABC):
                         e,
                         traceback.format_exc(),  # This will log the full stack trace
                     )
-        logger.info("Available Models: %s", str(available_models))
-        return available_models
+        if not is_test_environment():
+            logger.info("Models: %s", str(self))
+
+
+class ModelInstance(ABC):
 
     def __init__(self, directory: str):
         self.__directory = directory
@@ -342,6 +364,13 @@ class ModelInstance(ABC):
     @property
     def identifier(self) -> str:
         """
+        The identifier of the model instance, i.e. task/type/project
+        """
+        return f"{self.task}/{self.type}/{self.project}/{self.instance}"
+
+    @property
+    def type_identifier(self) -> str:
+        """
         The identifier of the model, i.e. task/type/project
         """
         return f"{self.task}/{self.type}/{self.project}"
@@ -385,7 +414,7 @@ class ModelInstance(ABC):
 
     # Override the __str__ method to return a string representation of the object
     def __str__(self) -> str:
-        return self.to_json()
+        return self.identifier
 
     def to_json(self) -> str:
         data = {

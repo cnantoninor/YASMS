@@ -12,6 +12,12 @@ A simple server to upload data, train and serve ML models.
 ./stop_app.sh
 ```
 
+## API docs
+
+```
+http://localhost:8000/docs
+```
+
 ### Logs
 ```bash
 cat app.log

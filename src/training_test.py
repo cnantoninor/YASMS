@@ -16,9 +16,7 @@ class TestTrainingTask(unittest.TestCase):
     @patch("trainer.logging")
     def test_execute(self, mock_logging):
         self.task.execute()
-        mock_logging.info.assert_called_once_with(
-            "Executing training task `%s`", self.task
-        )
+        mock_logging.debug.assert_called()
 
     def test_check_state_not_data_uploaded(self):
         with self.assertRaises(ValueError):

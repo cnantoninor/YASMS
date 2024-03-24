@@ -25,3 +25,4 @@ app.log
 
 .coverage
 htmlcov
+.mono
