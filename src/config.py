@@ -12,12 +12,12 @@ load_dotenv()
 # Configure logging
 LOG_FILE = "app.log"
 UVICORN_LOG_FILE = "uvicorn.log"
-UVICORN_LOG_ERR_FILE = "uvicorn.err.log"
+UVICORN_ERR_LOG_FILE = "uvicorn.err.log"
 
 LOG_ROTATION_INTERVAL = 10  # Number of log files before rotation
 
 # Create a handler that rotates log files when they reach a certain size
-log_handler = RotatingFileHandler(LOG_FILE, maxBytes=10_000_000, backupCount=10)
+log_handler = RotatingFileHandler(LOG_FILE, maxBytes=1_000_000, backupCount=10)
 
 LOG_FORMAT = (
     "%(asctime)s [%(levelname)s] [%(threadName)s] [%(filename)s:%(lineno)d] %(message)s"

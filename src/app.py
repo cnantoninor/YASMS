@@ -21,24 +21,39 @@ app = FastAPI()
 
 
 @app.get("/logs")
-async def get_app_log():
+async def get_app_logs():
+    """
+    Retrieves the content of the application logs file in REVERSED order: the last line is the first one in the list.
+
+        - app.log file used for logging the application logs.
+        - uvicorn.log file used for logging the uvicorn logs.
+        - uvicorn.err.log file used for logging the uvicorn error logs.
+
+    """
+
     with open(config.LOG_FILE) as f:
-        applog = f.read().split("\n").reverse()
+        applog = f.read().split("\n")[::-1]
 
     uvicorn_log = []
     if os.path.exists(config.UVICORN_LOG_FILE):
         with open(config.UVICORN_LOG_FILE) as f:
             uvicorn_log = f.read().split("\n")[::-1]
+    else:
+        logging.warning(f"Uvicorn log file not found: {config.UVICORN_LOG_FILE}")
 
     uvicorn_err_log = []
     if os.path.exists(config.UVICORN_ERR_LOG_FILE):
         with open(config.UVICORN_ERR_LOG_FILE) as f:
-            uvicorn_err_log = f.read().split("\n").reverse()
+            uvicorn_err_log = f.read().split("\n")[::-1]
+    else:
+        logging.warning(
+            f"Uvicorn error log file not found: {config.UVICORN_ERR_LOG_FILE}"
+        )
 
     return {
         f"{config.LOG_FILE}": applog,
-        "uvicorn.log": uvicorn_log,
-        "uvicorn.err.log": uvicorn_err_log,
+        f"{config.UVICORN_LOG_FILE}": uvicorn_log,
+        f"{config.UVICORN_ERR_LOG_FILE}": uvicorn_err_log,
     }
 
 
@@ -234,6 +249,9 @@ async def do_inference(
     project: str,
 ):
     """
+
+    # NOT IMPLEMENTED YET
+
     Perform the inference using the specified model type and name.
 
     Args:
