@@ -53,8 +53,7 @@ class SpamClassifierModelLogic(ModelInterface):
                     f"zero_count_gt_25percent: {zero_count_gt_25percent}",
                     f"one_count_gt_25percent: {one_count_gt_25percent}",
                     f"more_than_50_data_points_with_valid_zero_and_ones: {more_than_50_data_points}",
-                ]
-            )
+                ])
             err_msg = "The data is not trainable, reasons: %s", reasons
             logger.error(err_msg)
             raise ValueError(err_msg)
@@ -80,20 +79,21 @@ class SpamClassifierModelLogic(ModelInterface):
             self.df["Stato Workflow"].value_counts(),
         )
 
-    def train(self) -> tuple[pd.DataFrame, numpy.ndarray, Pipeline, float, float]:
+    def train(self) -> tuple[pd.DataFrame,
+                             numpy.ndarray, Pipeline, float, float]:
         """
         Train the spam classifier model instance.
         """
         text_input_feature_field_name = "_text_input_feature_"
-        # for each feature field, check if it is a string and concatenate all the feature fields with a new line
+        # for each feature field, check if it is a string and concatenate all
+        # the feature fields with a new line
         for feature_field in self.model_instance.features_fields:
             if self.df[feature_field].dtypes != "object":
                 raise ValueError(
                     f"Feature field `{feature_field}` must be a string, but it is a `{self.df[feature_field].dtypes}`"
                 )
             self.df[text_input_feature_field_name] = self.df[feature_field].str.cat(
-                sep="\n"
-            )
+                sep="\n")
 
         # Split the data into input features (X) and target variable (y)
         X = self.df[text_input_feature_field_name]  # pylint: disable=invalid-name
@@ -162,7 +162,8 @@ class SpamClassifierModelLogic(ModelInterface):
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42
         )
-        # Fit the pipeline to the training data and make predictions on the test data
+        # Fit the pipeline to the training data and make predictions on the
+        # test data
         pipeline.fit(X_train, y_train)
         y_pred = pipeline.predict(X_test)
         cm = confusion_matrix(y_test, y_pred)

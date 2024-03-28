@@ -29,7 +29,8 @@ class TestTasksQueue(unittest.TestCase):
         with patch("logging.info") as mocked_log:
             tasks_queue.submit(task)
             self.assertEqual(tasks_queue.size, 1)
-            mocked_log.assert_called_once_with("Adding task to queue: `%s`", task)
+            mocked_log.assert_called_once_with(
+                "Adding task to queue: `%s`", task)
 
     def test_size(self):
         self.assertEqual(tasks_queue.size, 0)

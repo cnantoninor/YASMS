@@ -7,9 +7,9 @@ import traceback
 import zipfile
 import shutil
 from typing import List
+from fastapi import FastAPI, File, Request, UploadFile, Form
 from fastapi.responses import JSONResponse, RedirectResponse
 import pandas as pd
-from fastapi import FastAPI, File, Request, UploadFile, Form
 from app_startup import bootstrap_app
 import config
 from model_instance import ModelInstance, Models
@@ -313,7 +313,8 @@ def __clean_train_data_dir_if_needed(directory: str) -> None:
         # Sort the subdirectories alphabetically
         subdirectories.sort()
 
-        # Remove the ones that are on top of the sorted list until only 10 remain
+        # Remove the ones that are on top of the sorted list until only 10
+        # remain
         for subdirectory in subdirectories[:-10]:
             shutil.rmtree(subdirectory)
 

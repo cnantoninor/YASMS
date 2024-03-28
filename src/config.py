@@ -47,8 +47,7 @@ class Paths:
     )
 
     testnino1_classification_task_refined_path: Path = (
-        data_path / "wl_classif_testnino1/TESTNINO1_without_StatoWorkflow_N.csv"
-    )
+        data_path / "wl_classif_testnino1/TESTNINO1_without_StatoWorkflow_N.csv")
 
 
 @dataclass
@@ -57,7 +56,8 @@ class Constants:
     TARGET_FIELD_FILE = "target_field.txt"
     BIZ_TASK_SPAM = "spam_classifier"
     GRADIENT_BOOSTING_CLASSIFIER = "GradientBoostingClassifier"
-    VALID_BIZ_TASK_MODEL_PAIR = [f"{BIZ_TASK_SPAM}/{GRADIENT_BOOSTING_CLASSIFIER}"]
+    VALID_BIZ_TASK_MODEL_PAIR = [
+        f"{BIZ_TASK_SPAM}/{GRADIENT_BOOSTING_CLASSIFIER}"]
     VALID_BIZ_TASK_MODEL_PAIR_TEST = [f"{BIZ_TASK_SPAM}/test_model"]
     MODEL_DATA_FILE = "model_data.csv"
     TRAINING_IN_PROGRESS_LOG = "training_in_progress.log"

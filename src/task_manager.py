@@ -119,13 +119,12 @@ class Task(ABC):
         return {
             "name": str(self),
             "timeStarted": (
-                self.time_started.isoformat() if self.time_started is not None else None
-            ),
+                self.time_started.isoformat() if self.time_started is not None else None),
             "timeEnded": (
-                self.time_ended.isoformat() if self.time_ended is not None else None
-            ),
+                self.time_ended.isoformat() if self.time_ended is not None else None),
             "durationSecs": self.duration_secs,
-            "error": str(self.error) if self.error is not None else None,
+            "error": str(
+                self.error) if self.error is not None else None,
             "modelInstance": self.model_instance.to_json(),
         }
 
@@ -186,7 +185,9 @@ class TasksExecutor:
 
     def __new__(cls, *args, **kwargs):
         if not isinstance(cls._instance, cls):
-            cls._instance = super(TasksExecutor, cls).__new__(cls, *args, **kwargs)
+            cls._instance = super(
+                TasksExecutor, cls).__new__(
+                cls, *args, **kwargs)
         return cls._instance
 
     def __init__(self):

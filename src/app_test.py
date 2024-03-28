@@ -106,7 +106,8 @@ class TestApp(unittest.TestCase):
         self.assert_upload_response(response)
 
     def test_upload_csv_with_tab_return_json_error(self):
-        # Test that uploading a CSV file with a tab character in it returns a JSON error
+        # Test that uploading a CSV file with a tab character in it returns a
+        # JSON error
         mod_type = "test_model"
         biz_task = config.Constants.BIZ_TASK_SPAM
         project = "test_project"

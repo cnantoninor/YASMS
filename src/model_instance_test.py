@@ -106,7 +106,8 @@ class TestModelInstance(unittest.TestCase):
         )
 
     def test_determine_state_when_training_in_progress(self):
-        # Test TRAINING_IN_PROGRESS: when the dir contains also a training subdir and the training_in_progress_file
+        # Test TRAINING_IN_PROGRESS: when the dir contains also a training
+        # subdir and the training_in_progress_file
         mod_instance_name = ModelInstanceStateEnum.TRAINING_IN_PROGRESS.name
         mis, _ = training_in_progress_mis_and_dir()
         self.assert_mis_properties(
@@ -120,7 +121,8 @@ class TestModelInstance(unittest.TestCase):
         )
 
     def test_determine_state_when_trained_ready_to_serve(self):
-        # Test TRAINED_READY_TO_SERVE: when the dir contains the pickle model file and NOT the error file
+        # Test TRAINED_READY_TO_SERVE: when the dir contains the pickle model
+        # file and NOT the error file
         mod_instance_name = ModelInstanceStateEnum.TRAINED_READY_TO_SERVE.name
         mis, _ = trained_ready_to_serve_mis_and_dir()
         self.assert_mis_properties(
@@ -133,7 +135,8 @@ class TestModelInstance(unittest.TestCase):
         )
 
     def test_determine_state_when_training_failed(self):
-        # Test TRAINING_FAILED: when the dir contains training error log file AND NOT the pickle model file
+        # Test TRAINING_FAILED: when the dir contains training error log file
+        # AND NOT the pickle model file
         mod_instance_name = ModelInstanceStateEnum.TRAINING_FAILED.name
         mis, _ = training_failed_mis_and_dir()
         self.assert_mis_properties(
@@ -249,9 +252,8 @@ class TestModelInstance(unittest.TestCase):
         )
 
     def test_snake_to_camel_case(self):
-        self.assertEqual(
-            ModelInstance.snake_to_camel_case("spam_classifier"), "SpamClassifier"
-        )
+        self.assertEqual(ModelInstance.snake_to_camel_case(
+            "spam_classifier"), "SpamClassifier")
 
     mock_walk_data = [
         (
