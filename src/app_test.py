@@ -71,7 +71,7 @@ class TestApp(unittest.TestCase):
         self.assertEqual(mis.task, config.Constants.BIZ_TASK_SPAM)
         self.assertEqual(mis.features_fields, ["Testo"])
         self.assertEqual(mis.target_field, "Stato Workflow")
-        model_instance_str = response.json()["model_instance"]
+        model_instance_str = response.json()["modelInstance"]
         self.assertEqual(model_instance_str, mis.to_json())
 
     def test_determine_model_instance_name_date_path(self):
@@ -104,3 +104,28 @@ class TestApp(unittest.TestCase):
             },
         )
         self.assert_upload_response(response)
+
+    def test_upload_csv_with_tab_return_json_error(self):
+        # Test that uploading a CSV file with a tab character in it returns a JSON error
+        mod_type = "test_model"
+        biz_task = config.Constants.BIZ_TASK_SPAM
+        project = "test_project"
+        with open(test_data_path / "tab_separated_model_data.csv", "rb") as file:
+            file_data_with_tab = file.read()
+        response = client.post(
+            f"/models/{biz_task}/{mod_type}/{project}/upload_train_data",
+            data={
+                "features_fields": ["text"],
+                "target_field": "status",
+            },
+            files={
+                "train_data": (
+                    "model_data_with_tab.csv",
+                    file_data_with_tab,
+                    "application/csv",
+                )
+            },
+        )
+        assert response.status_code == 400
+        assert response.json() is not None
+        assert "tab separated" in response.json()["error"]["message"]

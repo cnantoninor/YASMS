@@ -170,6 +170,9 @@ class ModelInstance(ABC):
         self.__instance_logic = None
         self.__determine_state()
 
+    def reload_state(self):
+        self.__determine_state()
+
     def check_trainable(self):
         if not self.is_trainable():
             raise ValueError(f"Model instance `{self}` is not in a state to be trained")
@@ -405,7 +408,7 @@ class ModelInstance(ABC):
         if not self.is_servable():
             return None
         if not os.path.exists(self.__training_subdir + "/time.stats"):
-            msg = f"Time file not found for model instance in `{self.__directory}`"
+            msg = f"`time.stats` file not found for model instance in `{self.__directory}`"
             logger.warning(msg)
             return msg
 
@@ -416,7 +419,7 @@ class ModelInstance(ABC):
     def __str__(self) -> str:
         return self.identifier
 
-    def to_json(self) -> str:
+    def to_json(self) -> dict:
         data = {
             "task": self.task,
             "type": self.type,
@@ -431,4 +434,4 @@ class ModelInstance(ABC):
                 "time": self.stats_time,
             },
         }
-        return json.dumps(data)
+        return data

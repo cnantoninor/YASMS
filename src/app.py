@@ -3,11 +3,13 @@ import io
 import logging
 import os
 import glob
+import traceback
 import zipfile
 import shutil
 from typing import List
+from fastapi.responses import JSONResponse, RedirectResponse
 import pandas as pd
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, Request, UploadFile, Form
 from app_startup import bootstrap_app
 import config
 from model_instance import ModelInstance, Models
@@ -17,10 +19,68 @@ from trainer import TrainingTask
 
 bootstrap_app()
 
-app = FastAPI()
+app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.2")
 
 
-@app.get("/logs")
+def request_to_json(request: Request) -> str:
+    return {
+        "method": request.method,
+        "url": str(request.url),
+        "headers": str(request.headers),
+        "pathParams": request.path_params,
+        "queryParams": str(request.query_params),
+        "client": str(request.client),
+    }
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    ret_code = 400
+    request_json = request_to_json(request)
+
+    logging.error(
+        f"Returning http error code `{ret_code}` for request `{request_json}` due to error: `{str(exc)}`\n{traceback.format_exc()}"
+    )
+
+    return JSONResponse(
+        status_code=ret_code,
+        content={
+            "error": {
+                "code": ret_code,
+                "message": f"Bad Request: {str(exc)}",
+                "request": request_json,
+            }
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandeld_exception_handler(request: Request, exc: Exception):
+    ret_code = 500
+    request_json = request_to_json(request)
+
+    logging.error(
+        f"Returning http error code `{ret_code}` for request `{request_json}` due to error: `{str(exc)}`\n{traceback.format_exc()}"
+    )
+
+    return JSONResponse(
+        status_code=ret_code,
+        content={
+            "error": {
+                "code": ret_code,
+                "message": f"Unexpected exception: {str(exc)}",
+                "request": request_json,
+            }
+        },
+    )
+
+
+@app.get("/", include_in_schema=False)
+def read_root():
+    return RedirectResponse(url="/docs")
+
+
+@app.get("/logs", tags=["observability"])
 async def get_app_logs():
     """
     Retrieves the content of the application logs file in REVERSED order: the last line is the first one in the list.
@@ -33,11 +93,13 @@ async def get_app_logs():
 
     with open(config.LOG_FILE) as f:
         applog = f.read().split("\n")[::-1]
+        applog = [line for line in applog if line.strip()]
 
     uvicorn_log = []
     if os.path.exists(config.UVICORN_LOG_FILE):
         with open(config.UVICORN_LOG_FILE) as f:
             uvicorn_log = f.read().split("\n")[::-1]
+            uvicorn_log = [line for line in uvicorn_log if line.strip()]
     else:
         logging.warning(f"Uvicorn log file not found: {config.UVICORN_LOG_FILE}")
 
@@ -45,24 +107,27 @@ async def get_app_logs():
     if os.path.exists(config.UVICORN_ERR_LOG_FILE):
         with open(config.UVICORN_ERR_LOG_FILE) as f:
             uvicorn_err_log = f.read().split("\n")[::-1]
+            uvicorn_err_log = [line for line in uvicorn_err_log if line.strip()]
     else:
         logging.warning(
             f"Uvicorn error log file not found: {config.UVICORN_ERR_LOG_FILE}"
         )
 
-    return {
-        f"{config.LOG_FILE}": applog,
-        f"{config.UVICORN_LOG_FILE}": uvicorn_log,
-        f"{config.UVICORN_ERR_LOG_FILE}": uvicorn_err_log,
-    }
+    return JSONResponse(
+        content={
+            f"{config.LOG_FILE}": applog,
+            f"{config.UVICORN_LOG_FILE}": uvicorn_log,
+            f"{config.UVICORN_ERR_LOG_FILE}": uvicorn_err_log,
+        },
+    )
 
 
-@app.get("/tasks/queue")
+@app.get("/tasks/queue", tags=["observability"])
 async def get_tasks_queue():
-    return {"tasks_queue": tasks_queue.to_json()}
+    return JSONResponse(content={"tasksQueue": tasks_queue.to_json()})
 
 
-@app.get("/models/active")
+@app.get("/models/active", tags=["models"])
 async def get_active_models():
     """
 
@@ -72,7 +137,7 @@ async def get_active_models():
     raise NotImplementedError("This endpoint is not implemented yet.")
 
 
-@app.get("/models")
+@app.get("/models", tags=["models"])
 async def get_all_models():
     """
     Retrieves the details of all the models.
@@ -80,10 +145,12 @@ async def get_all_models():
     # Returns:
         dict: A dictionary containing the state of all the model instances.
     """
-    return {"models": Models(config.data_path.as_posix()).to_json(verbose=True)}
+    return JSONResponse(
+        content={"models": Models(config.data_path.as_posix()).to_json(verbose=True)}
+    )
 
 
-@app.get("/models/registered_types")
+@app.get("/models/registered_types", tags=["models"])
 async def get_registered_types():
     """
     Retrieves the available business tasks and model types registered in the server.
@@ -92,10 +159,12 @@ async def get_registered_types():
         json: A json containing the available business tasks and model types.
 
     """
-    return {"available_biztasks_model_pair": config.Constants.VALID_BIZ_TASK_MODEL_PAIR}
+    return JSONResponse(
+        content={"validBizTasksModelPair": config.Constants.VALID_BIZ_TASK_MODEL_PAIR},
+    )
 
 
-@app.post("/models/{biz_task}/{mod_type}/{project}/upload_train_data")
+@app.post("/models/{biz_task}/{mod_type}/{project}/upload_train_data", tags=["models"])
 async def upload_train_data(
     biz_task: str,
     mod_type: str,
@@ -105,7 +174,7 @@ async def upload_train_data(
     target_field: str = Form(...),
 ):
     """
-    Uploads the CSV training data file to the specified model type and model name directory and submit an asynchrounous training task.
+    Uploads the COMMA (not TAB or other separator) separated training data file to the specified model type and model name directory and submit an asynchrounous training task.
 
     ## Args:
         - biz_task (str): The business task, e.g. spam_classifier.
@@ -114,7 +183,7 @@ async def upload_train_data(
 
         - project (str): The name of the project.
 
-        - train_data (UploadFile): The CSV file to be uploaded, it can be zipped.
+        - train_data (UploadFile): The CSV file to be uploaded, it can be zipped but must be a COMMA separated file.
 
         - features_fields (List[str]): the list of the fields in the
             CSV file `train_data` that will be used as features. Existence of fields will be checked.
@@ -173,7 +242,12 @@ async def upload_train_data(
         model_instance,
     )
 
-    return {"model_instance": model_instance.to_json(), "path": uploaded_data_dir}
+    return JSONResponse(
+        content={
+            "modelInstance": model_instance.to_json(),
+            "path": uploaded_data_dir.relative_to(config.root_path).as_posix(),
+        }
+    )
 
 
 def __write_features_and_target_fields(directory, features_fields, target_field):
@@ -197,7 +271,13 @@ def __check_csv_file(directory, features_fields, target_field):
     if len(csv_files) == 0:
         raise ValueError(f"No CSV file found in the train data dir: {directory}.")
 
-    df = pd.read_csv(csv_files[0])
+    df = pd.read_csv(csv_files[0], sep=",")
+
+    if df.columns.str.contains("\t").any():
+        shutil.rmtree(directory)
+        raise ValueError(
+            f"The file {csv_files[0]} is tab separated. It should be comma separated. Parsed dataframe shape is: {df.shape}, parsed columns are: {df.columns}."
+        )
 
     missing_columns = []
     for column in features_fields:
@@ -210,12 +290,14 @@ def __check_csv_file(directory, features_fields, target_field):
     if missing_columns:
         shutil.rmtree(directory)
         raise ValueError(
-            f"The following columns are missing in the {csv_files[0]}: {missing_columns}"
+            f"The following columns are missing in the {csv_files[0]}: {missing_columns}, parsed dataframe shape is: {df.shape}, parsed columns are: {df.columns}."
         )
 
     if len(df) < 50:
         shutil.rmtree(directory)
-        raise ValueError(f"The {csv_files[0]} must have at least 50 rows.")
+        raise ValueError(
+            f"The {csv_files[0]} must have at least 50 rows, parsed dataframe shape is: {df.shape}, parsed columns are: {df.columns}."
+        )
 
 
 def __clean_train_data_dir_if_needed(directory: str) -> None:
@@ -242,8 +324,8 @@ def determine_model_instance_name_date_path() -> str:
     return date_time_str
 
 
-@app.get("/models/{biz_task}/{mod_type}/{project}/do_inference")
-async def do_inference(
+@app.post("/models/{biz_task}/{mod_type}/{project}/predict", tags=["models"])
+async def predict(
     biz_task: str,
     mod_type: str,
     project: str,

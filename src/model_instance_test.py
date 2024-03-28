@@ -6,7 +6,7 @@ from mock import MagicMock, patch
 from model_instance import ModelInstance, ModelInstanceStateEnum, Models
 from config import Constants
 from utils_test import (
-    test_data_path,
+    test_mdlc_data_path,
     test_data__invalid_path,
     data_uploaded_mis_and_dir,
     trained_ready_to_serve_mis_and_dir,
@@ -173,7 +173,7 @@ class TestModelInstance(unittest.TestCase):
     #     self.assertEqual(len(available_models), len(avail_models))
 
     def test_from_train_directory(self):
-        data_dir = test_data_path.as_posix().replace("/", os.path.sep)
+        data_dir = test_mdlc_data_path.as_posix().replace("/", os.path.sep)
         models = Models(data_dir)
         trainable_models = models.trainable.values()
         servable_models = models.servable.values()
