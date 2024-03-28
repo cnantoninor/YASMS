@@ -252,8 +252,9 @@ class TestModelInstance(unittest.TestCase):
         )
 
     def test_snake_to_camel_case(self):
-        self.assertEqual(ModelInstance.snake_to_camel_case(
-            "spam_classifier"), "SpamClassifier")
+        self.assertEqual(
+            ModelInstance.snake_to_camel_case("spam_classifier"), "SpamClassifier"
+        )
 
     mock_walk_data = [
         (

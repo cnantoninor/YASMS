@@ -1,6 +1,5 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-import datetime
 from itertools import chain
 import json
 import logging
@@ -10,6 +9,7 @@ import os
 from pathlib import Path
 import pickle
 import traceback
+from typing import List
 import numpy
 import pandas as pd
 
@@ -18,6 +18,7 @@ from sklearn.pipeline import Pipeline
 from config import Constants
 
 from environment import is_test_environment
+from prediction_output import PredictionOutput
 from utils import import_class_from_string
 
 logger = logging.getLogger(__name__)
@@ -33,8 +34,7 @@ class ModelInstanceStateEnum(IntEnum):
 class ModelInterface(ABC):
 
     @abstractmethod
-    def train(self) -> tuple[pd.DataFrame,
-                             numpy.ndarray, Pipeline, float, float]:
+    def train(self) -> tuple[pd.DataFrame, numpy.ndarray, Pipeline, float, float]:
         """
         Train the model and return:
             - the metrics stats data frame
@@ -46,6 +46,12 @@ class ModelInterface(ABC):
 
     @abstractmethod
     def check_trainable(self) -> None:
+        pass
+
+    @abstractmethod
+    def predict(
+        self, feature_names: List[str], feature_values: List[str]
+    ) -> PredictionOutput:
         pass
 
 
@@ -66,15 +72,13 @@ class Models:
         self._root_data_dir = root_data_dir
 
     def __iter__(self):
-        return chain(
-            self._servable_dict.values(),
-            self._trainable_dict.values())
+        return chain(self._servable_dict.values(), self._trainable_dict.values())
 
     # size of the models
     def __len__(self):
-        return (len(self._servable_dict) +
-                len(self._trainable_dict) +
-                len(self._other_dict))
+        return (
+            len(self._servable_dict) + len(self._trainable_dict) + len(self._other_dict)
+        )
 
     def __str__(self) -> str:
         return json.dumps(self.to_json())
@@ -82,16 +86,16 @@ class Models:
     def add_if_makes_sense(self, model_instance: ModelInstance) -> None:
         if model_instance.is_servable():
             self._servable_dict[model_instance.identifier] = model_instance
-            logging.debug(
-                f"Added model instance `{model_instance}` as it is servable")
+            logging.debug("Added model instance `%s` as it is servable", model_instance)
         elif model_instance.is_trainable():
             self._trainable_dict[model_instance.identifier] = model_instance
             logging.debug(
-                f"Added model instance `{model_instance}` as it is trainable")
+                "Added model instance `%s` as it is trainable", model_instance
+            )
         else:
             self._other_dict[model_instance.identifier] = model_instance
             logging.debug(
-                f"Added model instance `{model_instance}` as it is in other state"
+                "Added model instance `%s` as it is in other state", model_instance
             )
 
     @property
@@ -119,16 +123,16 @@ class Models:
 
         if not verbose:
             return {
-                "servable": {
-                    k: str(v) for k, v in self._servable_dict.items()}, "trainable": {
-                    k: str(v) for k, v in self._trainable_dict.items()}, "other": {
-                    k: str(v) for k, v in self._other_dict.items()}, }
+                "servable": {k: str(v) for k, v in self._servable_dict.items()},
+                "trainable": {k: str(v) for k, v in self._trainable_dict.items()},
+                "other": {k: str(v) for k, v in self._other_dict.items()},
+            }
         else:
             return {
-                "servable": {
-                    k: v.to_json() for k, v in self._servable_dict.items()}, "trainable": {
-                    k: v.to_json() for k, v in self._trainable_dict.items()}, "other": {
-                    k: v.to_json() for k, v in self._other_dict.items()}, }
+                "servable": {k: v.to_json() for k, v in self._servable_dict.items()},
+                "trainable": {k: v.to_json() for k, v in self._trainable_dict.items()},
+                "other": {k: v.to_json() for k, v in self._other_dict.items()},
+            }
 
     def _populate(self, dir_name: str) -> Models:
         # check directory exists
@@ -168,9 +172,11 @@ class ModelInstance(ABC):
         if len(parts) < 4:
             raise ValueError(
                 f"Passed directory path `{self.__directory}` must have at least four parts: \
-                    [businessTask]/[modelType]/[project]/[modelInstanceName]")
+                    [businessTask]/[modelType]/[project]/[modelInstanceName]"
+            )
         self.__biz_task, self.__mod_type, self.__project, self.__mod_instance_name = (
-            parts[-4:])
+            parts[-4:]
+        )
         self.__features_fields = []
         self.__target_field = None
         self.__instance_logic = None
@@ -181,8 +187,7 @@ class ModelInstance(ABC):
 
     def check_trainable(self):
         if not self.is_trainable():
-            raise ValueError(
-                f"Model instance `{self}` is not in a state to be trained")
+            raise ValueError(f"Model instance `{self}` is not in a state to be trained")
         self.__logic.check_trainable()
 
     def is_trainable(self):
@@ -230,8 +235,7 @@ class ModelInstance(ABC):
                 directory_subtree += f"{root}\n"
                 for file in files:
                     directory_subtree += f"  - {file}\n"
-            raise ValueError(
-                f"Could not determine state for {directory_subtree}")
+            raise ValueError(f"Could not determine state for {directory_subtree}")
 
         self.__load_features_and_target()
 
@@ -245,8 +249,7 @@ class ModelInstance(ABC):
         # read the features fields file
         with open(features_fields_file, "r", encoding="utf8") as f:
             self.__features_fields = f.read().splitlines()
-        target_field_file = os.path.join(
-            self.__directory, Constants.TARGET_FIELD_FILE)
+        target_field_file = os.path.join(self.__directory, Constants.TARGET_FIELD_FILE)
         # read the target field file
         with open(target_field_file, "r", encoding="utf8") as f:
             self.__target_field = f.read()
@@ -264,8 +267,7 @@ class ModelInstance(ABC):
         pipeline: Pipeline = pickle.load(open(self.__model_pickle_file, "rb"))
         pipeline.predict()
 
-    def train(self) -> tuple[pd.DataFrame,
-                             numpy.ndarray, Pipeline, float, float]:
+    def train(self) -> tuple[pd.DataFrame, numpy.ndarray, Pipeline, float, float]:
         # create training dir if not exists and training in progress file
         if not os.path.exists(self.__training_subdir):
             os.makedirs(self.__training_subdir)
@@ -280,10 +282,8 @@ class ModelInstance(ABC):
             )
 
             df_metrics.to_csv(
-                self.__training_subdir +
-                "/metrics.stats",
-                index=False,
-                encoding="utf8")
+                self.__training_subdir + "/metrics.stats", index=False, encoding="utf8"
+            )
             # save the confusion matrix to a file
             numpy.savetxt(
                 self.__training_subdir + "/confusion_matrix.stats",
@@ -313,10 +313,7 @@ class ModelInstance(ABC):
             # write the error to the training error log file
             with open(self.__training_error_file, "w", encoding="utf8") as f:
                 f.write(err_msg)
-            logging.error(
-                "Error training model instance `%s`: %s",
-                str(self),
-                err_msg)
+            logging.error("Error training model instance `%s`: %s", str(self), err_msg)
             raise e
 
     @property
@@ -408,9 +405,7 @@ class ModelInstance(ABC):
     def stats_confusion_matrix(self) -> str:
         if not self.is_servable():
             return None
-        if not os.path.exists(
-                self.__training_subdir +
-                "/confusion_matrix.stats"):
+        if not os.path.exists(self.__training_subdir + "/confusion_matrix.stats"):
             msg = f"Confusion Matrix file not found for model instance in `{self.__directory}`"
             logger.warning(msg)
             return msg
