@@ -41,21 +41,23 @@ def training_in_progress_mis_and_dir():
 
 
 test_data_path: Path = root_path / "test_data"
+test_mdlc_data_path: Path = test_data_path / "MDLC"
 
 test_data__data_uploaded_path: Path = (
-    test_data_path / "spam_classifier/test_model/test_project/DATA_UPLOADED"
-)
+    test_mdlc_data_path /
+    "spam_classifier/test_model/test_project/DATA_UPLOADED")
 test_data__training_in_progress_path: Path = (
-    test_data_path / "spam_classifier/test_model/test_project/TRAINING_IN_PROGRESS"
-)
+    test_mdlc_data_path /
+    "spam_classifier/test_model/test_project/TRAINING_IN_PROGRESS")
 test_data__ready_to_serve_path: Path = (
-    test_data_path / "spam_classifier/test_model/test_project/TRAINED_READY_TO_SERVE"
+    test_mdlc_data_path
+    / "spam_classifier/test_model/test_project/TRAINED_READY_TO_SERVE"
 )
 test_data__training_failed_path: Path = (
-    test_data_path / "spam_classifier/test_model/test_project/TRAINING_FAILED"
-)
+    test_mdlc_data_path /
+    "spam_classifier/test_model/test_project/TRAINING_FAILED")
 test_data__invalid_path: Path = (
-    test_data_path / "spam_classifier/test_model/test_project/INVALID"
+    test_mdlc_data_path / "spam_classifier/test_model/test_project/INVALID"
 )
 
 

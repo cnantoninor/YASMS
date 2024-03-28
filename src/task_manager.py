@@ -17,8 +17,31 @@ class Task(ABC):
     """
 
     def __init__(self, model_instance: ModelInstance):
-        self._name = model_instance.__str__()
+        self._name = str(model_instance)
         self._model_instance = model_instance
+        self._error: Exception = None
+        self._time_started = None
+        self._time_ended = None
+
+    @property
+    def error(self) -> Exception:
+        """
+        Get the error associated with the task.
+
+        Returns:
+            Any: The error associated with the task.
+        """
+        return self._error
+
+    @error.setter
+    def error(self, value: Exception):
+        """
+        Set the error associated with the task.
+
+        Args:
+            value (Any): The error to be associated with the task.
+        """
+        self._error = value
 
     @property
     def name(self):
@@ -40,6 +63,49 @@ class Task(ABC):
         """
         return self._model_instance
 
+    @property
+    def time_started(self) -> datetime:
+        """
+        Get the time the task was started.
+
+        Returns:
+            datetime: The time the task was started.
+        """
+        return self._time_started
+
+    @property
+    def time_ended(self) -> datetime:
+        """
+        Get the time the task was ended.
+
+        Returns:
+            datetime: The time the task was ended.
+        """
+        return self._time_ended
+
+    @property
+    def duration_secs(self) -> float:
+        """
+        Get the duration of the task in seconds.
+
+        Returns:
+            float: The duration of the task in seconds.
+        """
+        if self._time_started and self._time_ended:
+            duration = self._time_ended - self._time_started
+            return duration.total_seconds()
+        else:
+            return -1.0
+
+    def run(self):
+        """
+        Run the task.
+        """
+        self._time_started = datetime.now()
+        self.execute()
+        self._time_ended = datetime.now()
+        self._duration = self._time_ended - self._time_started
+
     @abstractmethod
     def execute(self):
         """
@@ -49,11 +115,26 @@ class Task(ABC):
     def __str__(self):
         return f"{self.__class__.__name__}::{self.name}"
 
+    def to_json(self):
+        return {
+            "name": str(self),
+            "timeStarted": (
+                self.time_started.isoformat() if self.time_started is not None else None),
+            "timeEnded": (
+                self.time_ended.isoformat() if self.time_ended is not None else None),
+            "durationSecs": self.duration_secs,
+            "error": str(
+                self.error) if self.error is not None else None,
+            "modelInstance": self.model_instance.to_json(),
+        }
+
 
 class _TasksQueue:
 
     def __init__(self):
         self.tasks = queue.Queue(maxsize=0)
+        self._successfully_executed_tasks = []
+        self._unsuccessfully_executed_tasks = []
 
     def submit(self, task: Task):
         assert task is not None
@@ -82,9 +163,15 @@ class _TasksQueue:
 
     def to_json(self):
         return {
-            "time": datetime.now().isoformat(),
+            "currenttime": datetime.now().isoformat(),
             "tasks": self.task_list_str,
             "size": self.size,
+            "successfullyExecutedTasks": [
+                task.to_json() for task in self._successfully_executed_tasks
+            ],
+            "unsuccessfullyExecutedTasks": [
+                task.to_json() for task in self._unsuccessfully_executed_tasks
+            ],
         }
 
 
@@ -98,7 +185,9 @@ class TasksExecutor:
 
     def __new__(cls, *args, **kwargs):
         if not isinstance(cls._instance, cls):
-            cls._instance = super(TasksExecutor, cls).__new__(cls, *args, **kwargs)
+            cls._instance = super(
+                TasksExecutor, cls).__new__(
+                cls, *args, **kwargs)
         return cls._instance
 
     def __init__(self):
@@ -114,13 +203,17 @@ class TasksExecutor:
         while True:
             try:
                 # Blocking call
-                task = tasks_queue.tasks.get(block=True, timeout=None)
+                task: Task = tasks_queue.tasks.get(block=True, timeout=None)
                 logging.info("Executing task: `%s`", task)
-                task.execute()
+                task.run()
+                task.model_instance.reload_state()
+                tasks_queue._successfully_executed_tasks.append(task)
                 logging.info("Task executed succesfully: `%s`", task)
             except Exception as e:
                 logging.error("Error executing task `%s`: %s", task, e)
-                time.sleep(5)
+                task.error = e
+                tasks_queue._unsuccessfully_executed_tasks.append(task)
+                time.sleep(1)
             finally:
                 # free the thread resource from eventual poisoned tasks
                 tasks_queue.tasks.task_done()

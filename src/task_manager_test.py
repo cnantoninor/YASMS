@@ -1,10 +1,13 @@
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from task_manager import Task, tasks_queue, TasksExecutor
 
 
 class DummyTask(Task):
+
+    def __init__(self, modelInstanceMock=MagicMock()):
+        super().__init__(modelInstanceMock)
 
     def execute(self):
         pass
@@ -12,8 +15,8 @@ class DummyTask(Task):
 
 class TestTask(unittest.TestCase):
     def test_task_name(self):
-        task = DummyTask(None)
-        self.assertEqual(task.name, "None")
+        task = DummyTask()
+        self.assertIn("MagicMock", str(task))
 
 
 class TestTasksQueue(unittest.TestCase):
@@ -22,15 +25,16 @@ class TestTasksQueue(unittest.TestCase):
         tasks_queue.clear()
 
     def test_publish(self):
-        task = DummyTask(None)
+        task = DummyTask()
         with patch("logging.info") as mocked_log:
             tasks_queue.submit(task)
             self.assertEqual(tasks_queue.size, 1)
-            mocked_log.assert_called_once_with("Adding task to queue: `%s`", task)
+            mocked_log.assert_called_once_with(
+                "Adding task to queue: `%s`", task)
 
     def test_size(self):
         self.assertEqual(tasks_queue.size, 0)
-        task = DummyTask(None)
+        task = DummyTask()
         tasks_queue.submit(task)
         self.assertEqual(tasks_queue.size, 1)
 
@@ -46,7 +50,7 @@ class TestSubscriber(unittest.TestCase):
 
     def test_run(self):
         self.assertEqual(tasks_queue.size, 0)
-        task = DummyTask(None)
+        task = DummyTask()
         with patch("logging.info") as mocked_log:
             tasks_queue.submit(task)
             self.assertEqual(tasks_queue.size, 1)
