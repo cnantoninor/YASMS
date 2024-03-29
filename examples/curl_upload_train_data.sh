@@ -12,6 +12,13 @@ fi
 SCRIPT_PATH=$(realpath "$0")
 SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
 TEST_TRAIN_DATA=$SCRIPT_DIR/../test_data/MDLC/spam_classifier/test_model/test_project/DATA_UPLOADED/model_data.csv
+# TEST_TRAIN_DATA="/home/arau6/projects/wl-semsearch-poc-debug/test_data/23457ec5-79c6-4542-a14a-14a3c96d90cb.csv"
+
+# check if TEST_TRAIN_DATA exists
+if [ ! -f "$TEST_TRAIN_DATA" ]; then
+  echo "The file $TEST_TRAIN_DATA does not exist."
+  exit 1
+fi
 
 curl -X 'POST' \
   "http://$HOST:8000/models/spam_classifier/GradientBoostingClassifier/test_nino/upload_train_data" \

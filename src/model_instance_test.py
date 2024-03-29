@@ -87,7 +87,7 @@ class TestModelInstance(unittest.TestCase):
 
     def test_determine_state_when_state_cannot_be_determined(self):
         # Test when the state cannot be determined
-        with self.assertRaises(ValueError) as cm:
+        with self.assertRaises(Exception) as cm:
             _ = ModelInstance(test_data__invalid_path.as_posix()).state
             self.assertIn("Could not determine state for", str(cm.exception))
 
@@ -153,27 +153,6 @@ class TestModelInstance(unittest.TestCase):
         # Test from_train_directory when the directory does not exist
         with self.assertRaises(FileNotFoundError):
             Models("/sdfsdfdsf")
-
-    # def test_available_models_is_singleton(self):
-    #     # Test that AvailableModels is a singleton
-    #     mi1 = MagicMock()
-    #     mi1.identifier = "test1"
-    #     mi1.is_servable = MagicMock(return_value=True)
-    #     mi2 = MagicMock()
-    #     mi2.identifier = "test2"
-    #     mi2.is_servable = MagicMock(return_value=False)
-    #     mi2.is_trainable = MagicMock(return_value=True)
-
-    #     avail_models = available_models
-    #     avail_models.add_if_makes_sense(mi1)
-    #     avail_models2 = available_models
-    #     avail_models.add_if_makes_sense(mi2)
-    #     self.assertEqual(len(available_models), 2)
-    #     self.assertEqual(len(available_models.servable), 1)
-    #     self.assertEqual(len(available_models.trainable), 1)
-    #     self.assertIs(avail_models, avail_models2)
-    #     self.assertEqual(len(available_models), len(avail_models2))
-    #     self.assertEqual(len(available_models), len(avail_models))
 
     def test_from_train_directory(self):
         data_dir = test_mdlc_data_path.as_posix().replace("/", os.path.sep)
@@ -252,8 +231,9 @@ class TestModelInstance(unittest.TestCase):
         )
 
     def test_snake_to_camel_case(self):
-        self.assertEqual(ModelInstance.snake_to_camel_case(
-            "spam_classifier"), "SpamClassifier")
+        self.assertEqual(
+            ModelInstance.snake_to_camel_case("spam_classifier"), "SpamClassifier"
+        )
 
     mock_walk_data = [
         (

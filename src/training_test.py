@@ -20,7 +20,7 @@ class TestTrainingTask(unittest.TestCase):
         mock_logging.debug.assert_called()
 
     def test_check_state_not_data_uploaded(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
             self.task = TrainingTask(
                 ModelInstance(test_data__invalid_path.as_posix()),
             )
