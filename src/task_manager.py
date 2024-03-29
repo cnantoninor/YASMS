@@ -165,15 +165,15 @@ class _TasksQueue:
     def to_json(self):
         return {
             "currenttime": datetime.now().isoformat(),
-            "inQueue": {"size": self.size, "tasks": self.task_list_str},
-            "success": {
-                "size": len(self._successfully_executed_tasks),
+            "enqued": {"count": self.size, "tasks": self.task_list_str},
+            "succeed": {
+                "count": len(self._successfully_executed_tasks),
                 "tasks": [task.to_json() for task in self._successfully_executed_tasks][
                     ::-1
                 ],
             },
-            "unsuccess": {
-                "size": len(self._unsuccessfully_executed_tasks),
+            "failed": {
+                "count": len(self._unsuccessfully_executed_tasks),
                 "tasks": [
                     task.to_json() for task in self._unsuccessfully_executed_tasks
                 ][::-1],

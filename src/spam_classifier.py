@@ -139,7 +139,7 @@ class SpamClassifierModelLogic(ModelInterface):
         }
 
         # Perform k-fold cross-validation and calculate the scores
-        scores = cross_validate(pipeline, X, y, cv=5, scoring=scoring)
+        scores = cross_validate(pipeline, X, y, cv=2, scoring=scoring, verbose=2)
 
         # Create a list of dictionaries to store the metric values
         metrics_data = []
