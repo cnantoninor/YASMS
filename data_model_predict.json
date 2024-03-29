@@ -1,0 +1,25 @@
+{
+    "predictionTime": "2019-01-01T00:00:00Z",
+    "modelId": "////",
+    "predictions": [
+        {
+            "features": [
+                "featureX",
+                "featureY"
+            ],
+            "prediction": [
+                {
+                    "key": "spam",
+                    "value": "true",
+                    "mentions": [
+                        {
+                            "loc": "[-1, -1)",
+                            "confidence": 0.8,
+                            "score": 0.8
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

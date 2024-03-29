@@ -38,23 +38,24 @@ class SpamClassifierModelLogic(ModelInterface):
             logger.error(err_msg)
             raise ValueError(err_msg)
 
-        zero_count_gt_25percent = target_counts[0] >= total_samples * 0.25
-        one_count_gt_25percent = target_counts[1] >= total_samples * 0.25
+        zero_count_gt_10percent = target_counts[0] >= total_samples * 0.1
+        one_count_gt_10percent = target_counts[1] >= total_samples * 0.1
         more_than_50_data_points = total_samples > 50
         if (
             not only_zero_and_ones
-            or not zero_count_gt_25percent
-            or not one_count_gt_25percent
+            or not zero_count_gt_10percent
+            or not one_count_gt_10percent
             or not more_than_50_data_points
         ):
             reasons = "; ".join(
                 [
                     f"only_zero_and_ones: {only_zero_and_ones}",
-                    f"zero_count_gt_25percent: {zero_count_gt_25percent}",
-                    f"one_count_gt_25percent: {one_count_gt_25percent}",
+                    f"zero_count_gt_25percent: {zero_count_gt_10percent}",
+                    f"one_count_gt_25percent: {one_count_gt_10percent}",
                     f"more_than_50_data_points_with_valid_zero_and_ones: {more_than_50_data_points}",
-                ])
-            err_msg = "The data is not trainable, reasons: %s", reasons
+                ]
+            )
+            err_msg = f"The data is not trainable, reasons: {reasons}"
             logger.error(err_msg)
             raise ValueError(err_msg)
 
@@ -79,8 +80,7 @@ class SpamClassifierModelLogic(ModelInterface):
             self.df["Stato Workflow"].value_counts(),
         )
 
-    def train(self) -> tuple[pd.DataFrame,
-                             numpy.ndarray, Pipeline, float, float]:
+    def train(self) -> tuple[pd.DataFrame, numpy.ndarray, Pipeline, float, float]:
         """
         Train the spam classifier model instance.
         """
@@ -93,7 +93,8 @@ class SpamClassifierModelLogic(ModelInterface):
                     f"Feature field `{feature_field}` must be a string, but it is a `{self.df[feature_field].dtypes}`"
                 )
             self.df[text_input_feature_field_name] = self.df[feature_field].str.cat(
-                sep="\n")
+                sep="\n"
+            )
 
         # Split the data into input features (X) and target variable (y)
         X = self.df[text_input_feature_field_name]  # pylint: disable=invalid-name

@@ -1,5 +1,6 @@
 from datetime import datetime
 import io
+import json
 import logging
 import os
 import glob
@@ -7,7 +8,7 @@ import traceback
 import zipfile
 import shutil
 from typing import List
-from fastapi import FastAPI, File, Request, UploadFile, Form
+from fastapi import FastAPI, File, Request, UploadFile, Form, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 import pandas as pd
 from app_startup import bootstrap_app
@@ -17,13 +18,14 @@ from utils import check_valid_biz_task_model_pair
 from task_manager import tasks_queue
 from trainer import TrainingTask
 
+
 bootstrap_app()
 
-app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.2")
+app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.2.1")
 
 
-def request_to_json(request: Request) -> str:
-    return {
+async def request_to_json(request: Request) -> str:
+    data = {
         "method": request.method,
         "url": str(request.url),
         "headers": str(request.headers),
@@ -32,15 +34,45 @@ def request_to_json(request: Request) -> str:
         "client": str(request.client),
     }
 
+    if (
+        request.method == "POST"
+        and "content-type" in request.headers
+        and request.headers.get("content-type")
+        .lower()
+        .startswith("multipart/form-data")
+    ):
+        try:
+            form_data = await request.form()
+            form_data_dict = {}
+            for key, value in form_data.items():
+                if is_json_serializable(value):
+                    form_data_dict[key] = value
+            data["formData"] = form_data_dict
+        except Exception as e:
+            logging.error(
+                f"An error occurred while trying to get `form_data`: {str(e)}"
+            )
+
+    return data
+
+
+def is_json_serializable(field):
+    try:
+        json.dumps(field)
+        return True
+    except TypeError:
+        return False
+
 
 @app.exception_handler(ValueError)
-async def value_error_handler(request: Request, exc: ValueError):
+async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
     ret_code = 400
-    request_json = request_to_json(request)
+    request_json = await request_to_json(request)
 
     logging.error(
-        f"Returning http error code `{ret_code}` for request `{request_json}` due to error: `{str(exc)}`\n{traceback.format_exc()}"
+        f"BAD REQUEST `{ret_code}` for request `{request_json}` due to error: `{str(exc)}`\n{traceback.format_exc()}"
     )
+    delete_dir_if_upload_training_data_failed(request)
 
     return JSONResponse(
         status_code=ret_code,
@@ -57,11 +89,12 @@ async def value_error_handler(request: Request, exc: ValueError):
 @app.exception_handler(Exception)
 async def unhandeld_exception_handler(request: Request, exc: Exception):
     ret_code = 500
-    request_json = request_to_json(request)
+    request_json = await request_to_json(request)
 
     logging.error(
         f"Returning http error code `{ret_code}` for request `{request_json}` due to error: `{str(exc)}`\n{traceback.format_exc()}"
     )
+    delete_dir_if_upload_training_data_failed(request)
 
     return JSONResponse(
         status_code=ret_code,
@@ -73,6 +106,13 @@ async def unhandeld_exception_handler(request: Request, exc: Exception):
             }
         },
     )
+
+
+def delete_dir_if_upload_training_data_failed(request: Request) -> None:
+    if hasattr(request.state, "uploaded_data_dir"):
+        directory = request.state.uploaded_data_dir
+        if os.path.exists(directory):
+            shutil.rmtree(directory)
 
 
 @app.get("/", include_in_schema=False)
@@ -166,6 +206,7 @@ async def get_registered_types():
 
 @app.post("/models/{biz_task}/{mod_type}/{project}/upload_train_data", tags=["models"])
 async def upload_train_data(
+    request: Request,  # Add this line to define the "request" object
     biz_task: str,
     mod_type: str,
     project: str,
@@ -221,6 +262,8 @@ async def upload_train_data(
 
     os.makedirs(uploaded_data_dir, exist_ok=True)
 
+    request.state.uploaded_data_dir = uploaded_data_dir
+
     # Check if the file is a zip file
     if zipfile.is_zipfile(io.BytesIO(contents)):
         # If it's a zip file, extract it
@@ -233,9 +276,9 @@ async def upload_train_data(
 
     __write_features_and_target_fields(uploaded_data_dir, features_fields, target_field)
     __check_csv_file(uploaded_data_dir, features_fields, target_field)
-    __clean_train_data_dir_if_needed(uploaded_data_dir.parent)
     model_instance = ModelInstance(uploaded_data_dir.as_posix())
     tasks_queue.submit(TrainingTask(model_instance))
+    __clean_train_data_dir_if_needed(uploaded_data_dir.parent)
 
     logging.info(
         """Successfully uploaded train data and submitted train task for ModelInstance: `%s`""",
@@ -271,10 +314,10 @@ def __check_csv_file(directory, features_fields, target_field):
     if len(csv_files) == 0:
         raise ValueError(f"No CSV file found in the train data dir: {directory}.")
 
-    df = pd.read_csv(csv_files[0], sep=",")
+    file_name = csv_files[0]
+    df = pd.read_csv(file_name, sep=",")
 
     if df.columns.str.contains("\t").any():
-        shutil.rmtree(directory)
         raise ValueError(
             f"The file {csv_files[0]} is tab separated. It should be comma separated. Parsed dataframe shape is: {df.shape}, parsed columns are: {df.columns}."
         )
@@ -288,16 +331,21 @@ def __check_csv_file(directory, features_fields, target_field):
         missing_columns.append(target_field)
 
     if missing_columns:
-        shutil.rmtree(directory)
         raise ValueError(
             f"The following columns are missing in the {csv_files[0]}: {missing_columns}, parsed dataframe shape is: {df.shape}, parsed columns are: {df.columns}."
         )
 
     if len(df) < 50:
-        shutil.rmtree(directory)
         raise ValueError(
             f"The {csv_files[0]} must have at least 50 rows, parsed dataframe shape is: {df.shape}, parsed columns are: {df.columns}."
         )
+
+    # rename the file_name in Constants.MODEL_DATA_FILE if it's different
+    if file_name.endswith(config.Constants.MODEL_DATA_FILE):
+        return
+
+    model_data_file_name = os.path.join(directory, config.Constants.MODEL_DATA_FILE)
+    os.rename(file_name, model_data_file_name)
 
 
 def __clean_train_data_dir_if_needed(directory: str) -> None:

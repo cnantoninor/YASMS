@@ -58,7 +58,9 @@ class TestApp(unittest.TestCase):
 
         self.assert_upload_response(response)
 
-    def assert_upload_response(self, response):
+    def assert_upload_response(
+        self, response, features_fields=["Testo"], target_field="Stato Workflow"
+    ):
         print(response.json())
         assert response.status_code == 200
         uploaded_data_path = response.json()["path"]
@@ -69,8 +71,8 @@ class TestApp(unittest.TestCase):
         mis = ModelInstance(uploaded_data_path)
         self.assertEqual(mis.state, ModelInstanceStateEnum.DATA_UPLOADED)
         self.assertEqual(mis.task, config.Constants.BIZ_TASK_SPAM)
-        self.assertEqual(mis.features_fields, ["Testo"])
-        self.assertEqual(mis.target_field, "Stato Workflow")
+        self.assertEqual(mis.features_fields, features_fields)
+        self.assertEqual(mis.target_field, target_field)
         model_instance_str = response.json()["modelInstance"]
         self.assertEqual(model_instance_str, mis.to_json())
 
@@ -105,6 +107,32 @@ class TestApp(unittest.TestCase):
         )
         self.assert_upload_response(response)
 
+    def test_upload_training_data_unzipped_csv_filename_should_be_renamed(self):
+        mod_type = "test_model"
+        biz_task = config.Constants.BIZ_TASK_SPAM
+        project = "test_project"
+
+        with open("test_data/23457ec5-79c6-4542-a14a-14a3c96d90cb.csv", "rb") as file:
+            file_data = file.read()
+
+        response = client.post(
+            f"/models/{biz_task}/{mod_type}/{project}/upload_train_data",
+            data={
+                "features_fields": "text",
+                "target_field": "status",
+            },
+            files={
+                "train_data": (
+                    "23457ec5-79c6-4542-a14a-14a3c96d90cb.csv",
+                    file_data,
+                    "application/csv",
+                )
+            },
+        )
+        self.assert_upload_response(
+            response, features_fields=["text"], target_field="status"
+        )
+
     def test_upload_csv_with_tab_return_json_error(self):
         # Test that uploading a CSV file with a tab character in it returns a
         # JSON error
@@ -129,4 +157,5 @@ class TestApp(unittest.TestCase):
         )
         assert response.status_code == 400
         assert response.json() is not None
+        print(response.json())
         assert "tab separated" in response.json()["error"]["message"]
