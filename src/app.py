@@ -8,7 +8,7 @@ import traceback
 import zipfile
 import shutil
 from typing import List
-from fastapi import FastAPI, File, Request, UploadFile, Form, Request
+from fastapi import FastAPI, File, Request, UploadFile, Form
 from fastapi.responses import JSONResponse, RedirectResponse
 import pandas as pd
 from app_startup import bootstrap_app
@@ -21,7 +21,7 @@ from trainer import TrainingTask
 
 bootstrap_app()
 
-app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.2.1")
+app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.2.2")
 
 
 async def request_to_json(request: Request) -> str:
@@ -50,7 +50,7 @@ async def request_to_json(request: Request) -> str:
             data["formData"] = form_data_dict
         except Exception as e:
             logging.error(
-                f"An error occurred while trying to get `form_data`: {str(e)}"
+                "An error occurred while trying to get `form_data`: %s", str(e)
             )
 
     return data
@@ -70,7 +70,11 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
     request_json = await request_to_json(request)
 
     logging.error(
-        f"BAD REQUEST `{ret_code}` for request `{request_json}` due to error: `{str(exc)}`\n{traceback.format_exc()}"
+        "BAD REQUEST `%s` for request `%s` due to error: `%s`\n%s",
+        ret_code,
+        request_json,
+        str(exc),
+        traceback.format_exc(),
     )
     delete_dir_if_upload_training_data_failed(request)
 
@@ -92,7 +96,11 @@ async def unhandeld_exception_handler(request: Request, exc: Exception):
     request_json = await request_to_json(request)
 
     logging.error(
-        f"Returning http error code `{ret_code}` for request `{request_json}` due to error: `{str(exc)}`\n{traceback.format_exc()}"
+        "Returning http error code `%s` for request `%s` due to error: `%s`\n%s",
+        ret_code,
+        request_json,
+        str(exc),
+        traceback.format_exc(),
     )
     delete_dir_if_upload_training_data_failed(request)
 
@@ -137,11 +145,11 @@ async def get_app_logs():
 
     uvicorn_log = []
     if os.path.exists(config.UVICORN_LOG_FILE):
-        with open(config.UVICORN_LOG_FILE) as f:
+        with open(config.UVICORN_LOG_FILE, encoding="utf-8") as f:
             uvicorn_log = f.read().split("\n")[::-1]
             uvicorn_log = [line for line in uvicorn_log if line.strip()]
     else:
-        logging.warning(f"Uvicorn log file not found: {config.UVICORN_LOG_FILE}")
+        logging.warning("Uvicorn log file not found: %s", config.UVICORN_LOG_FILE)
 
     uvicorn_err_log = []
     if os.path.exists(config.UVICORN_ERR_LOG_FILE):

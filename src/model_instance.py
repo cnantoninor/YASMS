@@ -79,14 +79,16 @@ class Models:
     def add_if_makes_sense(self, model_instance: ModelInstance) -> None:
         if model_instance.is_servable():
             self._servable_dict[model_instance.identifier] = model_instance
-            logging.debug(f"Added model instance `{model_instance}` as it is servable")
+            logging.debug("Added model instance `%s` as it is servable", model_instance)
         elif model_instance.is_trainable():
             self._trainable_dict[model_instance.identifier] = model_instance
-            logging.debug(f"Added model instance `{model_instance}` as it is trainable")
+            logging.debug(
+                "Added model instance `%s` as it is trainable", model_instance
+            )
         else:
             self._other_dict[model_instance.identifier] = model_instance
             logging.debug(
-                f"Added model instance `{model_instance}` as it is in other state"
+                "Added model instance `%s` as it is in other state", model_instance
             )
 
     @property
@@ -175,6 +177,7 @@ class ModelInstance:
 
     def reload_state(self):
         self.__determine_state()
+        return self
 
     def check_trainable(self):
         if not self.is_trainable():
@@ -199,6 +202,9 @@ class ModelInstance:
         )
         self.__training_error_file = os.path.join(
             self.__training_subdir, Constants.TRAINING_ERROR_LOG
+        )
+        self.__training_progress_details_file = os.path.join(
+            self.__training_subdir, Constants.TRAINING_PROGRESS_DETAILS_LOG
         )
         self.__training_in_progress_file = os.path.join(
             self.__training_subdir, Constants.TRAINING_IN_PROGRESS_LOG
@@ -371,6 +377,14 @@ class ModelInstance:
         return self.__training_error_file
 
     @property
+    def training_in_progress_file(self) -> str:
+        return self.__training_in_progress_file
+
+    @property
+    def training_progress_details_file(self) -> str:
+        return self.__training_progress_details_file
+
+    @property
     def training_subdir(self) -> str:
         return self.__training_subdir
 
@@ -397,7 +411,9 @@ class ModelInstance:
             logger.warning(msg)
             return msg
 
-        return pd.read_csv(self.__training_subdir + "/metrics.stats").to_dict()
+        return pd.read_csv(self.__training_subdir + "/metrics.stats").to_csv(
+            index=False
+        )
 
     @property
     def stats_confusion_matrix(self) -> str:
@@ -411,7 +427,7 @@ class ModelInstance:
         confusion_matrix = numpy.loadtxt(
             self.__training_subdir + "/confusion_matrix.stats", delimiter=","
         )
-        return json.dumps(confusion_matrix.tolist())
+        return confusion_matrix.tolist()
 
     @property
     def stats_time(self) -> dict:
@@ -431,16 +447,28 @@ class ModelInstance:
         return self.identifier
 
     def to_json(self) -> dict:
+
+        training_details = ""
+        if os.path.exists(self.__training_progress_details_file):
+            with open(
+                self.__training_progress_details_file, "r", encoding="utf-8"
+            ) as f:
+                training_details = f.read()
+        training_details = [line for line in training_details.split("\n") if line != ""]
+
         data = {
             "task": self.task,
             "type": self.type,
             "project": self.project,
             "instance_name": self.instance,
             "state": self.state.name,
+            "training_details": training_details,
             "features": self.features_fields,
             "target": self.target_field,
             "stats": {
-                "metrics": self.stats_metrics,
+                "metrics": (
+                    self.stats_metrics.split("\n") if self.stats_metrics else None
+                ),
                 "confusion_matrix": self.stats_confusion_matrix,
                 "time": self.stats_time,
             },

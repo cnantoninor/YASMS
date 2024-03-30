@@ -1,5 +1,8 @@
+from datetime import datetime
 import logging
+import sys
 import time
+import multiprocessing
 import numpy
 import pandas as pd
 from sklearn.metrics import confusion_matrix
@@ -7,7 +10,9 @@ from sklearn.model_selection import cross_validate, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.ensemble import GradientBoostingClassifier
+from environment import is_test_environment
 from model_instance import ModelInstance, ModelInterface
+
 
 logger = logging.getLogger(__name__)
 
@@ -138,36 +143,75 @@ class SpamClassifierModelLogic(ModelInterface):
             "balanced_accuracy": "balanced_accuracy",
         }
 
-        # Perform k-fold cross-validation and calculate the scores
-        scores = cross_validate(pipeline, X, y, cv=2, scoring=scoring, verbose=2)
+        # Redirect the output to the training in progress file
+        # save the old stdout
+        old_std_out = sys.stdout
 
-        # Create a list of dictionaries to store the metric values
-        metrics_data = []
+        try:
+            with open(
+                self.model_instance.training_progress_details_file,
+                "w",
+                encoding="utf-8",
+            ) as stdout_file:
+                sys.stdout = stdout_file
+                print(f"\n{datetime.now()} - **** Starting cross-validation... ****")
+                # Perform k-fold cross-validation and calculate the scores
 
-        # Iterate over each metric
-        for metric in scoring:
-            # Create a dictionary for each metric
-            metric_dict = {
-                "Metric": metric,
-                "Value": scores["test_" + metric].mean(),
-                "Standard Deviation": scores["test_" + metric].std(),
-            }
-            # Append the metric dictionary to the list
-            metrics_data.append(metric_dict)
+                scores = cross_validate(
+                    pipeline,
+                    X,
+                    y,
+                    cv=2,
+                    scoring=scoring,
+                    verbose=2,
+                    n_jobs=(
+                        (multiprocessing.cpu_count() - 1)
+                        if not is_test_environment()
+                        else 1
+                    ),
+                )
+                print(f"\n{datetime.now()} - **** Cross-validation complete. **** \n")
 
-        # Create a pandas DataFrame from the list of dictionaries
-        metrics_df = pd.DataFrame(metrics_data)
+                # Create a list of dictionaries to store the metric values
+                metrics_data = []
 
-        # split test and train and create a confusion matrix
-        # pylint: disable=invalid-name
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
-        # Fit the pipeline to the training data and make predictions on the
-        # test data
-        pipeline.fit(X_train, y_train)
-        y_pred = pipeline.predict(X_test)
-        cm = confusion_matrix(y_test, y_pred)
+                # Iterate over each metric
+                for metric in scoring:
+                    # Create a dictionary for each metric
+                    metric_dict = {
+                        "Metric": metric,
+                        "Value": scores["test_" + metric].mean(),
+                        "Standard Deviation": scores["test_" + metric].std(),
+                    }
+                    # Append the metric dictionary to the list
+                    metrics_data.append(metric_dict)
+
+                # Create a pandas DataFrame from the list of dictionaries
+                metrics_df = pd.DataFrame(metrics_data)
+
+                # split test and train and create a confusion matrix
+                # pylint: disable=invalid-name
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=0.2, random_state=42
+                )
+                # Fit the pipeline to the training data and make predictions on the
+                # test data
+                print(
+                    f"\n{datetime.now()} - **** Fitting pipeline to training data... ****"
+                )
+                pipeline.fit(X_train, y_train)
+                print(
+                    f"\n{datetime.now()} - **** Pipeline fitted to training data. **** \n"
+                )
+
+                print(
+                    f"\n{datetime.now()} - **** Making predictions on test data for confusion matrix... ****"
+                )
+                y_pred = pipeline.predict(X_test)
+                cm = confusion_matrix(y_test, y_pred)
+                print(f"\n{datetime.now()} - **** Confusion matrix done. **** \n")
+        finally:
+            sys.stdout = old_std_out
 
         return metrics_df, cm
 

@@ -24,8 +24,7 @@ class TestSpamClassifierModelLogic(unittest.TestCase):
             shutil.rmtree(self.data_uploaded_mis.training_subdir)
 
     def test_check_trainable(self):
-        spam_classifier = SpamClassifierModelLogic(
-            data_uploaded_mis_and_dir()[0])
+        spam_classifier = SpamClassifierModelLogic(data_uploaded_mis_and_dir()[0])
         try:
             spam_classifier.check_trainable()
         except ValueError as e:
@@ -34,6 +33,7 @@ class TestSpamClassifierModelLogic(unittest.TestCase):
     def test_train(self):
         try:
             self.data_uploaded_mis.train()
+            print(self.data_uploaded_mis.reload_state().to_json())
         except Exception as e:
             self.fail(e)
 
