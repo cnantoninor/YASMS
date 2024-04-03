@@ -3,7 +3,7 @@ import logging
 import sys
 import time
 import multiprocessing
-import numpy
+import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import cross_validate, train_test_split
@@ -12,6 +12,7 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.ensemble import GradientBoostingClassifier
 from environment import is_test_environment
 from model_instance import ModelInstance, ModelInterface
+from prediction_output import PredictionOutput
 
 
 logger = logging.getLogger(__name__)
@@ -85,7 +86,7 @@ class SpamClassifierModelLogic(ModelInterface):
             self.df["Stato Workflow"].value_counts(),
         )
 
-    def train(self) -> tuple[pd.DataFrame, numpy.ndarray, Pipeline, float, float]:
+    def train(self) -> tuple[pd.DataFrame, np.ndarray, Pipeline, float, float]:
         """
         Train the spam classifier model instance.
         """
@@ -215,6 +216,56 @@ class SpamClassifierModelLogic(ModelInterface):
             sys.stdout = old_std_out
 
         return metrics_df, cm
+
+    def predict(self, features: dict[str, str]) -> PredictionOutput:
+        """
+        Predict for the spam classifier model instance.
+        """
+        pipeline: Pipeline = self.model_instance.load_model()
+
+        # check if the input feature values are strings
+        for key, value in features.items():
+            if not isinstance(value, str):
+                raise ValueError(
+                    f"Feature field `{key}` must be a string, but it is a `{type(value)}`"
+                )
+
+        # transform the input feature values to a single string
+        text_input_feature = "\n".join(features.values())
+
+        # predict the class and the probabilities
+        probabilities = pipeline.predict_proba([text_input_feature])
+
+        # Get the index of the maximum confidence score
+        best_class_index = np.argmax(probabilities[0])
+
+        # Get the confidence score of the best class
+        best_class_confidence = probabilities[0][best_class_index]
+
+        best_class_label = pipeline.named_steps["clf"].classes_[best_class_index]
+
+        # return the prediction
+        return PredictionOutput(
+            timestamp=datetime.now().isoformat(),
+            modelId=self.model_instance.identifier,
+            predictions=[
+                {
+                    "featureNames": list(features.keys()),
+                    "prediction": [
+                        {
+                            "key": "ham_or_spam",
+                            "value": best_class_label,
+                            "mentions": [
+                                {
+                                    "loc": "all",
+                                    "confidence": best_class_confidence,
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        )
 
     @property
     def model_instance(self):

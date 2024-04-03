@@ -84,7 +84,7 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
         content={
             "error": {
                 "code": ret_code,
-                "message": "Bad Request: %s" % str(exc),
+                "message": f"Bad Request: {str(exc)}",
                 "request": request_json,
             }
         },
@@ -97,11 +97,6 @@ async def unhandeld_exception_handler(request: Request, exc: Exception):
     request_json = await request_to_json(request)
 
     logging.error(
-        "Returning http error code `%s` for request `%s` due to error: `%s`\n%s",
-        ret_code,
-        request_json,
-        str(exc),
-        traceback.format_exc(),
         "Returning http error code `%s` for request `%s` due to error: `%s`\n%s",
         ret_code,
         request_json,
@@ -163,7 +158,6 @@ async def get_app_logs():
             uvicorn_err_log = [line for line in uvicorn_err_log if line.strip()]
     else:
         logging.warning(
-            "Uvicorn error log file not found: %s", config.UVICORN_ERR_LOG_FILE
             "Uvicorn error log file not found: %s", config.UVICORN_ERR_LOG_FILE
         )
 

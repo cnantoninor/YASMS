@@ -9,7 +9,6 @@ import os
 from pathlib import Path
 import pickle
 import traceback
-from typing import List
 import numpy
 import pandas as pd
 
@@ -49,10 +48,18 @@ class ModelInterface(ABC):
         pass
 
     @abstractmethod
-    def predict(
-        self, feature_names: List[str], feature_values: List[str]
-    ) -> PredictionOutput:
-        pass
+    def predict(self, features: dict[str, any]) -> PredictionOutput:
+        """
+        Given the dictionary of features which must be the same of the train features,
+        predict the output and return the PredictionOutput annotations.
+
+        Args:
+            features (dict[str, any]): The dictionary of features used for prediction
+
+        Returns:
+            PredictionOutput: The prediction output
+
+        """
 
 
 class Models:
@@ -191,6 +198,10 @@ class ModelInstance:
             raise ValueError(f"Model instance `{self}` is not in a state to be trained")
         self.__logic.check_trainable()
 
+    def check_servable(self):
+        if not self.is_servable():
+            raise ValueError(f"Model instance `{self}` is not in a state to be served")
+
     def is_trainable(self):
         return (
             self.state == ModelInstanceStateEnum.DATA_UPLOADED
@@ -270,14 +281,6 @@ class ModelInstance:
         components = snake_case_str.split("_")
         return "".join(x.title() for x in components).strip()
 
-    def predict(self):
-        logger.debug(
-            "Predicting using :`%s`",
-            self.__logic,
-        )
-        pipeline: Pipeline = pickle.load(open(self.__model_pickle_file, "rb"))
-        pipeline.predict()
-
     def train(self) -> tuple[pd.DataFrame, numpy.ndarray, Pipeline, float, float]:
         # create training dir if not exists and training in progress file
         if not os.path.exists(self.__training_subdir):
@@ -326,6 +329,45 @@ class ModelInstance:
                 f.write(err_msg)
             logging.error("Error training model instance `%s`: %s", str(self), err_msg)
             raise e
+
+    def load_model(self) -> Pipeline:
+        self.check_servable()
+        return pickle.load(open(self.__model_pickle_file, "rb"))
+
+    def predict(self, features: dict[str, any]) -> PredictionOutput:
+        """
+        Given the dictionary of features which must be the same of the train features,
+        predict the output and return the PredictionOutput annotations.
+
+        Args:
+            features (dict[str, any]): The dictionary of features used for prediction
+
+        Returns:
+            PredictionOutput: The prediction output
+
+        """
+
+        logger.debug(
+            "Predicting using algorithm `%s` and features `%s`",
+            self.__logic,
+            features,
+        )
+        self.check_servable()
+
+        # check if the features are the same as the training features using the features fields
+        if set(features.keys()) != set(self.features_fields):
+            raise ValueError(
+                f"Feature names provided for prediction do not match the training features: {set(features.keys())} != {set(self.features_fields)}"
+            )
+
+        prediction_output: PredictionOutput = self.__logic.predict(features)
+        logger.debug(
+            "Predicted using algorithm `%s` and features `%s`; returned result: `%s`",
+            self.__logic,
+            features,
+            prediction_output,
+        )
+        return prediction_output
 
     @property
     def __logic(self) -> ModelInterface:

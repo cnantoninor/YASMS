@@ -1,6 +1,7 @@
 import os
 import shutil
 import unittest
+from prediction_output import PredictionOutput
 from spam_classifier import SpamClassifierModelLogic
 from utils_test import data_uploaded_mis_and_dir
 
@@ -34,6 +35,16 @@ class TestSpamClassifierModelLogic(unittest.TestCase):
         try:
             self.data_uploaded_mis.train()
             print(self.data_uploaded_mis.reload_state().to_json())
+        except Exception as e:
+            self.fail(e)
+
+    def test_predict(self):
+        try:
+            mi = self.data_uploaded_mis
+            mi.train()
+            mi.reload_state()
+            pred_output: PredictionOutput = mi.predict({"Testo": "Hello World!"})
+            print(pred_output.model_dump_json())
         except Exception as e:
             self.fail(e)
 

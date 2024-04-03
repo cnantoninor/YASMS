@@ -201,6 +201,23 @@ class TestModelInstance(unittest.TestCase):
         with self.assertRaises(ValueError):
             mis.check_trainable()
 
+    def test_check_servable(self):
+        # Test check_servable
+        mis, _ = data_uploaded_mis_and_dir()
+        with self.assertRaises(ValueError):
+            mis.check_servable()
+
+        mis, _ = training_in_progress_mis_and_dir()
+        with self.assertRaises(ValueError):
+            mis.check_servable()
+
+        mis, _ = trained_ready_to_serve_mis_and_dir()
+        mis.check_servable()
+
+        mis, _ = training_failed_mis_and_dir()
+        with self.assertRaises(ValueError):
+            mis.check_servable()
+
     def test_load_training_data(self):
         # Test load_training_data
         mis, _ = data_uploaded_mis_and_dir()
