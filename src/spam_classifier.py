@@ -7,9 +7,11 @@ import numpy
 import pandas as pd
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import cross_validate, train_test_split
+from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.svm import SVC
 from environment import is_test_environment
 from model_instance import ModelInstance, ModelInterface
 
@@ -97,9 +99,10 @@ class SpamClassifierModelLogic(ModelInterface):
                 raise ValueError(
                     f"Feature field `{feature_field}` must be a string, but it is a `{self.df[feature_field].dtypes}`"
                 )
-            self.df[text_input_feature_field_name] = self.df[feature_field].str.cat(
-                sep="\n"
-            )
+        # Assuming self.model_instance.features_fields is a list of all feature field names
+        self.df[text_input_feature_field_name] = self.df[
+            self.model_instance.features_fields
+        ].apply(lambda row: "\n".join(row.values.astype(str)), axis=1)
 
         # Split the data into input features (X) and target variable (y)
         X = self.df[text_input_feature_field_name]  # pylint: disable=invalid-name
@@ -161,7 +164,7 @@ class SpamClassifierModelLogic(ModelInterface):
                     pipeline,
                     X,
                     y,
-                    cv=2,
+                    cv=5,
                     scoring=scoring,
                     verbose=2,
                     n_jobs=(

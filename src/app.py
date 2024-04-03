@@ -348,10 +348,6 @@ def __check_csv_file(directory, features_fields, target_field):
             f"The {csv_files[0]} must have at least 50 rows, parsed dataframe shape is: {df.shape}, parsed columns are: {df.columns}."
         )
 
-    # rename the file_name in Constants.MODEL_DATA_FILE if it's different
-    if file_name.endswith(config.Constants.MODEL_DATA_FILE):
-        return
-
     model_data_file_name = os.path.join(directory, config.Constants.MODEL_DATA_FILE)
     os.rename(file_name, model_data_file_name)
 

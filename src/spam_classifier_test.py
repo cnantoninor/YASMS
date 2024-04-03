@@ -1,6 +1,7 @@
 import os
 import shutil
 import unittest
+from model_instance import ModelInstance
 from spam_classifier import SpamClassifierModelLogic
 from utils_test import data_uploaded_mis_and_dir
 
