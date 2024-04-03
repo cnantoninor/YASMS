@@ -14,6 +14,7 @@ import pandas as pd
 from app_startup import bootstrap_app
 import config
 from model_instance import ModelInstance, Models
+from prediction_output import PredictionOutput
 from utils import check_valid_biz_task_model_pair
 from task_manager import tasks_queue
 from trainer import TrainingTask
@@ -83,7 +84,7 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
         content={
             "error": {
                 "code": ret_code,
-                "message": f"Bad Request: {str(exc)}",
+                "message": "Bad Request: %s" % str(exc),
                 "request": request_json,
             }
         },
@@ -96,6 +97,11 @@ async def unhandeld_exception_handler(request: Request, exc: Exception):
     request_json = await request_to_json(request)
 
     logging.error(
+        "Returning http error code `%s` for request `%s` due to error: `%s`\n%s",
+        ret_code,
+        request_json,
+        str(exc),
+        traceback.format_exc(),
         "Returning http error code `%s` for request `%s` due to error: `%s`\n%s",
         ret_code,
         request_json,
@@ -143,21 +149,21 @@ async def get_app_logs():
         applog = f.read().split("\n")[::-1]
         applog = [line for line in applog if line.strip()]
 
-    uvicorn_log = []
     if os.path.exists(config.UVICORN_LOG_FILE):
         with open(config.UVICORN_LOG_FILE, encoding="utf-8") as f:
             uvicorn_log = f.read().split("\n")[::-1]
             uvicorn_log = [line for line in uvicorn_log if line.strip()]
     else:
         logging.warning("Uvicorn log file not found: %s", config.UVICORN_LOG_FILE)
+        logging.warning("Uvicorn log file not found: %s", config.UVICORN_LOG_FILE)
 
-    uvicorn_err_log = []
     if os.path.exists(config.UVICORN_ERR_LOG_FILE):
         with open(config.UVICORN_ERR_LOG_FILE, encoding="utf-8") as f:
             uvicorn_err_log = f.read().split("\n")[::-1]
             uvicorn_err_log = [line for line in uvicorn_err_log if line.strip()]
     else:
         logging.warning(
+            "Uvicorn error log file not found: %s", config.UVICORN_ERR_LOG_FILE
             "Uvicorn error log file not found: %s", config.UVICORN_ERR_LOG_FILE
         )
 
@@ -379,21 +385,25 @@ def determine_model_instance_name_date_path() -> str:
     return date_time_str
 
 
-@app.post("/models/{biz_task}/{mod_type}/{project}/predict", tags=["models"])
+@app.post(
+    "/models/{biz_task}/{mod_type}/{project}/predict",
+    tags=["models"],
+    response_model=PredictionOutput,
+)
 async def predict(
     biz_task: str,
     mod_type: str,
     project: str,
+    features: List[str] = Form(...),
 ):
     """
-
-    # NOT IMPLEMENTED YET
-
-    Perform the inference using the specified model type and name.
+    Perform a prediction based on the given parameters.
 
     Args:
-        biz_task (str): The type of the model.
-        mod_type (str): The name of the model.
+        biz_task (str): The business task for the prediction.
+        mod_type (str): The type of model to use for the prediction.
+        project (str): The project to use for the prediction.
+        features (List[str], optional): The list of features to use for the prediction. Defaults to Form(...).
 
     Returns:
         dict: A dictionary containing the inference results.

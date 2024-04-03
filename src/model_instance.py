@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import pickle
 import traceback
+from typing import List
 import numpy
 import pandas as pd
 
@@ -17,6 +18,7 @@ from sklearn.pipeline import Pipeline
 from config import Constants
 
 from environment import is_test_environment
+from prediction_output import PredictionOutput
 from utils import import_class_from_string
 
 logger = logging.getLogger(__name__)
@@ -44,6 +46,12 @@ class ModelInterface(ABC):
 
     @abstractmethod
     def check_trainable(self) -> None:
+        pass
+
+    @abstractmethod
+    def predict(
+        self, feature_names: List[str], feature_values: List[str]
+    ) -> PredictionOutput:
         pass
 
 
