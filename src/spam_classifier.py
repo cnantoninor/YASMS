@@ -165,7 +165,11 @@ class SpamClassifierModelLogic(ModelInterface):
                     cv=5,
                     scoring=scoring,
                     verbose=2,
-                    n_jobs=1,
+                    n_jobs=(
+                        multiprocessing.cpu_count() - 1
+                        if not is_test_environment()
+                        else 1
+                    ),
                 )
                 print(f"\n{datetime.now()} - **** Cross-validation complete. **** \n")
 
