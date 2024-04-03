@@ -7,11 +7,9 @@ import numpy
 import pandas as pd
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import cross_validate, train_test_split
-from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.svm import SVC
 from environment import is_test_environment
 from model_instance import ModelInstance, ModelInterface
 
