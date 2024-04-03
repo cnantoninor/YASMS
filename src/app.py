@@ -21,7 +21,7 @@ from trainer import TrainingTask
 
 bootstrap_app()
 
-app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.2.2")
+app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.2.3")
 
 
 async def request_to_json(request: Request) -> str:
@@ -139,7 +139,7 @@ async def get_app_logs():
 
     """
 
-    with open(config.LOG_FILE) as f:
+    with open(config.LOG_FILE, encoding="utf-8") as f:
         applog = f.read().split("\n")[::-1]
         applog = [line for line in applog if line.strip()]
 
@@ -153,12 +153,12 @@ async def get_app_logs():
 
     uvicorn_err_log = []
     if os.path.exists(config.UVICORN_ERR_LOG_FILE):
-        with open(config.UVICORN_ERR_LOG_FILE) as f:
+        with open(config.UVICORN_ERR_LOG_FILE, encoding="utf-8") as f:
             uvicorn_err_log = f.read().split("\n")[::-1]
             uvicorn_err_log = [line for line in uvicorn_err_log if line.strip()]
     else:
         logging.warning(
-            f"Uvicorn error log file not found: {config.UVICORN_ERR_LOG_FILE}"
+            "Uvicorn error log file not found: %s", config.UVICORN_ERR_LOG_FILE
         )
 
     return JSONResponse(
@@ -223,7 +223,8 @@ async def upload_train_data(
     target_field: str = Form(...),
 ):
     """
-    Uploads the COMMA (not TAB or other separator) separated training data file to the specified model type and model name directory and submit an asynchrounous training task.
+    Uploads the COMMA (not TAB or other separator) separated training data file to the specified model type and model
+    name directory and submit an asynchrounous training task.
 
     ## Args:
         - biz_task (str): The business task, e.g. spam_classifier.
@@ -248,7 +249,8 @@ async def upload_train_data(
 
         - If the file does not contain the indicated features and target fields, an error is raised.
 
-        - If the fields are in a wrong format in respect or a specific biz_task rules isn't respected, an error is raised.
+        - If the fields are in a wrong format in respect or a specific biz_task rules isn't respected,
+            an error is raised.
 
     ## Specific biz tasks checks for the fields:
         - *spam_classifier*: the *target_field* should have 0 or 1. The features fields should be strings.
@@ -347,10 +349,6 @@ def __check_csv_file(directory, features_fields, target_field):
         raise ValueError(
             f"The {csv_files[0]} must have at least 50 rows, parsed dataframe shape is: {df.shape}, parsed columns are: {df.columns}."
         )
-
-    # rename the file_name in Constants.MODEL_DATA_FILE if it's different
-    if file_name.endswith(config.Constants.MODEL_DATA_FILE):
-        return
 
     model_data_file_name = os.path.join(directory, config.Constants.MODEL_DATA_FILE)
     os.rename(file_name, model_data_file_name)

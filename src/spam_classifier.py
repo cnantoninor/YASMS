@@ -97,9 +97,10 @@ class SpamClassifierModelLogic(ModelInterface):
                 raise ValueError(
                     f"Feature field `{feature_field}` must be a string, but it is a `{self.df[feature_field].dtypes}`"
                 )
-            self.df[text_input_feature_field_name] = self.df[feature_field].str.cat(
-                sep="\n"
-            )
+        # Assuming self.model_instance.features_fields is a list of all feature field names
+        self.df[text_input_feature_field_name] = self.df[
+            self.model_instance.features_fields
+        ].apply(lambda row: "\n".join(row.values.astype(str)), axis=1)
 
         # Split the data into input features (X) and target variable (y)
         X = self.df[text_input_feature_field_name]  # pylint: disable=invalid-name
@@ -161,7 +162,7 @@ class SpamClassifierModelLogic(ModelInterface):
                     pipeline,
                     X,
                     y,
-                    cv=2,
+                    cv=5,
                     scoring=scoring,
                     verbose=2,
                     n_jobs=1,
