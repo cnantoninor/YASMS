@@ -159,3 +159,8 @@ class TestApp(unittest.TestCase):
         assert response.json() is not None
         print(response.json())
         assert "tab separated" in response.json()["error"]["message"]
+
+    def test_isalive(self):
+        response = client.get("/isalive")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"alive": True})

@@ -21,7 +21,7 @@ from trainer import TrainingTask
 
 bootstrap_app()
 
-app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.2.3")
+app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.3")
 
 
 async def request_to_json(request: Request) -> str:
@@ -399,3 +399,15 @@ async def predict(
         dict: A dictionary containing the inference results.
     """
     pass
+
+
+@app.get("/isalive", tags=["observability"])
+async def isalive():
+    """
+    Check if the application is alive.
+
+    Returns:
+        dict: A dictionary indicating whether the application is alive.
+            The dictionary has a single key-value pair: "alive" -> True.
+    """
+    return {"alive": True}
