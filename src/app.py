@@ -21,7 +21,7 @@ from trainer import TrainingTask
 
 bootstrap_app()
 
-app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.2.2")
+app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.2.3")
 
 
 async def request_to_json(request: Request) -> str:
