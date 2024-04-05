@@ -26,10 +26,8 @@ class Prediction(BaseModel):
     - mentions: List[Mention] (optional list of mentions)
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
     key: str
-    value: any
+    value: str
     mentions: List[Mention]
 
 

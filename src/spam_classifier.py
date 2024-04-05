@@ -156,7 +156,7 @@ class SpamClassifierModelLogic(ModelInterface):
                 encoding="utf-8",
             ) as stdout_file:
                 sys.stdout = stdout_file
-                print(f"\n{datetime.now()} - **** Starting cross-validation... ****")
+                print(f"\n{datetime.now()} - Starting cross-validation...")
                 # Perform k-fold cross-validation and calculate the scores
 
                 scores = cross_validate(
@@ -172,7 +172,7 @@ class SpamClassifierModelLogic(ModelInterface):
                         else 1
                     ),
                 )
-                print(f"\n{datetime.now()} - **** Cross-validation complete. **** \n")
+                print(f"\n{datetime.now()} - Cross-validation complete. \n")
 
                 # Create a list of dictionaries to store the metric values
                 metrics_data = []
@@ -198,20 +198,16 @@ class SpamClassifierModelLogic(ModelInterface):
                 )
                 # Fit the pipeline to the training data and make predictions on the
                 # test data
-                print(
-                    f"\n{datetime.now()} - **** Fitting pipeline to training data... ****"
-                )
+                print(f"\n{datetime.now()} - Fitting pipeline to training data...")
                 pipeline.fit(X_train, y_train)
-                print(
-                    f"\n{datetime.now()} - **** Pipeline fitted to training data. **** \n"
-                )
+                print(f"\n{datetime.now()} - Pipeline fitted to training data. \n")
 
                 print(
-                    f"\n{datetime.now()} - **** Making predictions on test data for confusion matrix... ****"
+                    f"\n{datetime.now()} - Making predictions on test data for confusion matrix..."
                 )
                 y_pred = pipeline.predict(X_test)
                 cm = confusion_matrix(y_test, y_pred)
-                print(f"\n{datetime.now()} - **** Confusion matrix done. **** \n")
+                print(f"\n{datetime.now()} - Confusion matrix done. \n")
         finally:
             sys.stdout = old_std_out
 
@@ -240,9 +236,9 @@ class SpamClassifierModelLogic(ModelInterface):
         best_class_index = np.argmax(probabilities[0])
 
         # Get the confidence score of the best class
-        best_class_confidence = probabilities[0][best_class_index]
-
+        best_class_confidence = str(probabilities[0][best_class_index])
         best_class_label = pipeline.named_steps["clf"].classes_[best_class_index]
+        best_class_label = "ham" if best_class_label == 1 else "spam"
 
         # return the prediction
         return PredictionOutput(

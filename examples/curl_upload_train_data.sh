@@ -35,3 +35,10 @@ curl -X 'POST' \
   -F 'features_fields=text' \
   -F 'target_field=status' \
   -F "train_data=@$TEST_TRAIN_DATA" \
+
+
+# curl -X 'POST' \
+#   'http://localhost:8000/models/spam_classifier/GradientBoostingClassifier/test_nino/predict' \
+#   -H 'accept: application/json' \
+#   -H 'Content-Type: application/x-www-form-urlencoded' \
+#   -d 'features=text'

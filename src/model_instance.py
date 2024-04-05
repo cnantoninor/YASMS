@@ -306,11 +306,11 @@ class ModelInstance:
                 delimiter=",",
             )
 
-            timestats = f"Cross Validation Time: {cv_time} seconds; Fit Time: {fit_time} seconds"
+            timestats = {"cvTimeSecs": cv_time, "fitTimeSecs": fit_time}
             with open(
                 self.__training_subdir + "/time.stats", "w", encoding="utf8"
             ) as f:
-                f.write(timestats)
+                f.write(json.dumps(timestats))
 
             # save the trained model to the model pickle file
             pickle.dump(pipeline, open(self.__model_pickle_file, "wb"))
@@ -334,7 +334,7 @@ class ModelInstance:
         self.check_servable()
         return pickle.load(open(self.__model_pickle_file, "rb"))
 
-    def predict(self, features: dict[str, any]) -> PredictionOutput:
+    def predict(self, features: dict[str, str]) -> PredictionOutput:
         """
         Given the dictionary of features which must be the same of the train features,
         predict the output and return the PredictionOutput annotations.
@@ -488,7 +488,7 @@ class ModelInstance:
             return msg
 
         with open(self.__training_subdir + "/time.stats", "r", encoding="utf8") as f:
-            return f.read()
+            return json.loads(f.read())
 
     # Override the __str__ method to return a string representation of the
     # object
@@ -497,13 +497,20 @@ class ModelInstance:
 
     def to_json(self) -> dict:
 
-        training_details = ""
+        training_details = None
         if os.path.exists(self.__training_progress_details_file):
             with open(
                 self.__training_progress_details_file, "r", encoding="utf-8"
             ) as f:
                 training_details = f.read()
-        training_details = [line for line in training_details.split("\n") if line != ""]
+            training_details = [
+                line for line in training_details.split("\n") if line != ""
+            ]
+        metrics_details = None
+        if self.stats_metrics:
+            metrics_details = [
+                line for line in self.stats_metrics.split("\n") if line != ""
+            ]
 
         data = {
             "task": self.task,
@@ -511,13 +518,11 @@ class ModelInstance:
             "project": self.project,
             "instance_name": self.instance,
             "state": self.state.name,
-            "training_details": training_details,
+            "training_log": training_details,
             "features": self.features_fields,
             "target": self.target_field,
             "stats": {
-                "metrics": (
-                    self.stats_metrics.split("\n") if self.stats_metrics else None
-                ),
+                "metrics": metrics_details,
                 "confusion_matrix": self.stats_confusion_matrix,
                 "time": self.stats_time,
             },

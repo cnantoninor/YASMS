@@ -22,7 +22,7 @@ from trainer import TrainingTask
 
 bootstrap_app()
 
-app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.3")
+app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.4")
 
 
 async def request_to_json(request: Request) -> str:
@@ -388,8 +388,8 @@ async def predict(
     biz_task: str,
     mod_type: str,
     project: str,
-    features: List[str] = Form(...),
-):
+    features: List[str],
+) -> PredictionOutput:
     """
     Perform a prediction based on the given parameters.
 
@@ -397,12 +397,19 @@ async def predict(
         biz_task (str): The business task for the prediction.
         mod_type (str): The type of model to use for the prediction.
         project (str): The project to use for the prediction.
-        features (List[str], optional): The list of features to use for the prediction. Defaults to Form(...).
+        features (List[str]): The list of features to use for the prediction.
 
     Returns:
-        dict: A dictionary containing the inference results.
+        PredictionOutput: The prediction output object. This object contains the timestamp of the prediction, the model ID, and the predictions.
+            Predictions are a list of features and their corresponding predicted values.
     """
-    pass
+    check_valid_biz_task_model_pair(biz_task, mod_type)
+
+    model_instance = ModelInstance(
+        config.data_path.joinpath(biz_task).joinpath(mod_type).joinpath(project)
+    )
+
+    return model_instance.predict(features)
 
 
 @app.get("/isalive", tags=["observability"])
