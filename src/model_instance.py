@@ -17,8 +17,9 @@ from sklearn.pipeline import Pipeline
 from config import Constants
 
 from environment import is_test_environment
-from prediction_output import PredictionOutput
+from prediction_model import PredictionInput, PredictionOutput
 from utils import import_class_from_string
+
 
 logger = logging.getLogger(__name__)
 
@@ -334,7 +335,7 @@ class ModelInstance:
         self.check_servable()
         return pickle.load(open(self.__model_pickle_file, "rb"))
 
-    def predict(self, features: dict[str, str]) -> PredictionOutput:
+    def predict(self, prediction_input: PredictionInput) -> PredictionOutput:
         """
         Given the dictionary of features which must be the same of the train features,
         predict the output and return the PredictionOutput annotations.
@@ -346,25 +347,20 @@ class ModelInstance:
             PredictionOutput: The prediction output
 
         """
+        self.check_servable()
+        prediction_input.check_valid_features(self.features_fields)
 
         logger.debug(
             "Predicting using algorithm `%s` and features `%s`",
             self.__logic,
-            features,
+            prediction_input.feature_values,
         )
-        self.check_servable()
 
-        # check if the features are the same as the training features using the features fields
-        if set(features.keys()) != set(self.features_fields):
-            raise ValueError(
-                f"Feature names provided for prediction do not match the training features: {set(features.keys())} != {set(self.features_fields)}"
-            )
-
-        prediction_output: PredictionOutput = self.__logic.predict(features)
+        prediction_output: PredictionOutput = self.__logic.predict(prediction_input)
         logger.debug(
             "Predicted using algorithm `%s` and features `%s`; returned result: `%s`",
             self.__logic,
-            features,
+            prediction_input.feature_values,
             prediction_output,
         )
         return prediction_output

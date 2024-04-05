@@ -1,4 +1,5 @@
 import os
+from time import sleep
 import zipfile
 from datetime import datetime
 import io
@@ -84,6 +85,10 @@ class TestApp(unittest.TestCase):
         print(dt_path)
 
     def test_upload_training_data_unzipped(self):
+        response = self.upload_test_data()
+        self.assert_upload_response(response)
+
+    def upload_test_data(self):
         mod_type = "test_model"
         biz_task = config.Constants.BIZ_TASK_SPAM
         project = "test_project"
@@ -105,7 +110,8 @@ class TestApp(unittest.TestCase):
                 )
             },
         )
-        self.assert_upload_response(response)
+
+        return response
 
     def test_upload_training_data_unzipped_csv_filename_should_be_renamed(self):
         mod_type = "test_model"
@@ -164,3 +170,24 @@ class TestApp(unittest.TestCase):
         response = client.get("/isalive")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"alive": True})
+
+    def test_predict(self):
+
+        response = self.upload_test_data()
+
+        biz_task = response.json()["modelInstance"]["task"]
+        mod_type = response.json()["modelInstance"]["type"]
+        project = response.json()["modelInstance"]["project"]
+
+        sleep(5)
+
+        # Define a mock request
+        json_request = {"features": [{"name": "Testo", "value": "string"}]}
+
+        response = client.post(
+            f"/models/{biz_task}/{mod_type}/{project}/predict",
+            json=json_request,
+        )
+
+        # Check the response status code
+        assert response.status_code == 200

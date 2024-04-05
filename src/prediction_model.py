@@ -1,5 +1,42 @@
 from typing import List
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
+
+
+class Feature(BaseModel):
+    name: str
+    value: str
+
+
+class PredictionInput(BaseModel):
+    """
+    Represents the input for a prediction.
+
+    Attributes:
+    - features: List[Feature] (list of features)
+    """
+
+    features: List[Feature]
+
+    @property
+    def feature_names(self) -> List[str]:
+        return [f.name for f in self.features]
+
+    @property
+    def feature_values(self) -> List[str]:
+        return [f.value for f in self.features]
+
+    def check_valid_features(self, training_feature_names: List[str]) -> None:
+
+        # check if the features are the same as the training features using the features fields
+        if set(self.feature_names) != set(training_feature_names):
+            raise ValueError(
+                f"Feature names provided for prediction do not match the training features: {set(self.feature_names)} != {set(training_feature_names)}"
+            )
+        # check if there is at least one feature and if the value is not empty for each feature
+        if not all(self.feature_values):
+            raise ValueError(
+                f"Feature values cannot be empty: {self.model_dump_json()}"
+            )
 
 
 class Mention(BaseModel):

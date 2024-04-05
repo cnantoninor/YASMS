@@ -9,12 +9,13 @@ import zipfile
 import shutil
 from typing import List
 from fastapi import FastAPI, File, Request, UploadFile, Form
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse
 import pandas as pd
 from app_startup import bootstrap_app
 import config
 from model_instance import ModelInstance, Models
-from prediction_output import PredictionOutput
+from prediction_model import PredictionInput, PredictionOutput
 from utils import check_valid_biz_task_model_pair
 from task_manager import tasks_queue
 from trainer import TrainingTask
@@ -23,6 +24,20 @@ from trainer import TrainingTask
 bootstrap_app()
 
 app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.4")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Log the error
+    logging.error("Validation error: %s - Request: %s", exc, request)
+    # Return a JSON response with the details of the validation error
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": exc.errors(),
+            "body": exc.body,
+        },
+    )
 
 
 async def request_to_json(request: Request) -> str:
@@ -389,7 +404,7 @@ async def predict(
     biz_task: str,
     mod_type: str,
     project: str,
-    features: List[str],
+    prediction_input: PredictionInput,
 ) -> PredictionOutput:
     """
     Perform a prediction based on the given parameters.
@@ -410,7 +425,7 @@ async def predict(
         config.data_path.joinpath(biz_task).joinpath(mod_type).joinpath(project)
     )
 
-    return model_instance.predict(features)
+    return model_instance.predict(prediction_input)
 
 
 @app.get("/isalive", tags=["observability"])

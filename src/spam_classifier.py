@@ -3,6 +3,7 @@ import logging
 import sys
 import time
 import multiprocessing
+from typing import List
 import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix
@@ -12,7 +13,7 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.ensemble import GradientBoostingClassifier
 from environment import is_test_environment
 from model_instance import ModelInstance, ModelInterface
-from prediction_output import PredictionOutput
+from prediction_model import PredictionInput, PredictionOutput
 
 
 logger = logging.getLogger(__name__)
@@ -213,32 +214,21 @@ class SpamClassifierModelLogic(ModelInterface):
 
         return metrics_df, cm
 
-    def predict(self, features: dict[str, str]) -> PredictionOutput:
+    def predict(self, prediction_input: PredictionInput) -> PredictionOutput:
         """
         Predict for the spam classifier model instance.
         """
         pipeline: Pipeline = self.model_instance.load_model()
 
-        # check if the input feature values are strings
-        for key, value in features.items():
-            if not isinstance(value, str):
-                raise ValueError(
-                    f"Feature field `{key}` must be a string, but it is a `{type(value)}`"
-                )
-
         # transform the input feature values to a single string
-        text_input_feature = "\n".join(features.values())
-
+        text_input_features = "\n".join(prediction_input.feature_values)
         # predict the class and the probabilities
-        probabilities = pipeline.predict_proba([text_input_feature])
-
+        probabilities = pipeline.predict_proba([text_input_features])
         # Get the index of the maximum confidence score
         best_class_index = np.argmax(probabilities[0])
-
         # Get the confidence score of the best class
         best_class_confidence = str(probabilities[0][best_class_index])
-        best_class_label = pipeline.named_steps["clf"].classes_[best_class_index]
-        best_class_label = "ham" if best_class_label == 1 else "spam"
+        best_class_label = "ham" if best_class_index == 1 else "spam"
 
         # return the prediction
         return PredictionOutput(
@@ -246,7 +236,7 @@ class SpamClassifierModelLogic(ModelInterface):
             modelId=self.model_instance.identifier,
             predictions=[
                 {
-                    "featureNames": list(features.keys()),
+                    "featureNames": prediction_input.feature_names,
                     "prediction": [
                         {
                             "key": "ham_or_spam",
@@ -272,3 +262,6 @@ class SpamClassifierModelLogic(ModelInterface):
         if self.__df is None:
             self.__df = self.__model_instance.load_training_data()
         return self.__df
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}({self.__model_instance})"
