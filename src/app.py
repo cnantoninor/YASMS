@@ -84,13 +84,14 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
         content={
             "error": {
                 "code": ret_code,
-                "message": f"Bad Request: {str(exc)}",
+                "message": f"Bad Request: {exc.__class__.__name__} - {str(exc)}",
                 "request": request_json,
             }
         },
     )
 
 
+@app.exception_handler(json.JSONDecodeError)
 @app.exception_handler(Exception)
 async def unhandeld_exception_handler(request: Request, exc: Exception):
     ret_code = 500
@@ -110,7 +111,7 @@ async def unhandeld_exception_handler(request: Request, exc: Exception):
         content={
             "error": {
                 "code": ret_code,
-                "message": f"Unexpected exception: {str(exc)}",
+                "message": f"Unexpected exception: {exc.__class__.__name__} - {str(exc)}",
                 "request": request_json,
             }
         },

@@ -133,6 +133,9 @@ class TestModelInstance(unittest.TestCase):
             ModelInstanceStateEnum.TRAINED_READY_TO_SERVE,
             "ModelInstance.state should be TRAINED_READY_TO_SERVE when TRAINED_MODEL_FILE file exists",
         )
+        self.assertEqual(mis.stats_time["cvTimeSecs"], 5.0)
+        self.assertEqual(mis.stats_time["fitTimeSecs"], 1.0)
+        self.assertGreater(mis.stats_metrics.__len__, 0)
 
     def test_determine_state_when_training_failed(self):
         # Test TRAINING_FAILED: when the dir contains training error log file

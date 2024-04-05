@@ -1,0 +1,15 @@
+
+2024-04-02 21:24:50.990499 - **** Starting cross-validation... ****
+
+2024-04-02 21:25:16.648757 - **** Cross-validation complete. **** 
+
+
+2024-04-02 21:25:16.650087 - **** Fitting pipeline to training data... ****
+
+2024-04-02 21:25:37.801619 - **** Pipeline fitted to training data. **** 
+
+
+2024-04-02 21:25:37.801630 - **** Making predictions on test data for confusion matrix... ****
+
+2024-04-02 21:25:37.953149 - **** Confusion matrix done. **** 
+
