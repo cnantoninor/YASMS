@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 import pandas as pd
 from app_startup import bootstrap_app
 import config
-from model_instance import ModelInstance, Models
+from model_instance import ModelInstance, _Models, models
 from prediction_model import PredictionInput, PredictionOutput
 from utils import check_valid_biz_task_model_pair
 from task_manager import tasks_queue
@@ -210,7 +210,7 @@ async def get_all_models():
         dict: A dictionary containing the state of all the model instances.
     """
     return JSONResponse(
-        content={"models": Models(config.data_path.as_posix()).to_json(verbose=True)}
+        content={"models": _Models(config.data_path.as_posix()).to_json(verbose=True)}
     )
 
 
@@ -300,11 +300,11 @@ async def upload_train_data(
         with open(os.path.join(uploaded_data_dir, train_data.filename), "wb") as f:
             f.write(contents)
 
-    __write_features_and_target_fields(uploaded_data_dir, features_fields, target_field)
-    __check_csv_file(uploaded_data_dir, features_fields, target_field)
+    _write_features_and_target_fields(uploaded_data_dir, features_fields, target_field)
+    _check_csv_file(uploaded_data_dir, features_fields, target_field)
     model_instance = ModelInstance(uploaded_data_dir.as_posix())
     tasks_queue.submit(TrainingTask(model_instance))
-    __clean_train_data_dir_if_needed(uploaded_data_dir.parent)
+    _clean_train_data_dir_if_needed(uploaded_data_dir.parent)
 
     logging.info(
         """Successfully uploaded train data and submitted train task for ModelInstance: `%s`""",
@@ -319,7 +319,7 @@ async def upload_train_data(
     )
 
 
-def __write_features_and_target_fields(directory, features_fields, target_field):
+def _write_features_and_target_fields(directory, features_fields, target_field):
     with open(
         os.path.join(directory, config.Constants.FEATURES_FIELDS_FILE),
         "w",
@@ -335,7 +335,7 @@ def __write_features_and_target_fields(directory, features_fields, target_field)
         f.write(target_field)
 
 
-def __check_csv_file(directory, features_fields, target_field):
+def _check_csv_file(directory, features_fields, target_field):
     csv_files = glob.glob(os.path.join(directory, "*.csv"))
     if len(csv_files) == 0:
         raise ValueError(f"No CSV file found in the train data dir: {directory}.")
@@ -370,7 +370,7 @@ def __check_csv_file(directory, features_fields, target_field):
     os.rename(file_name, model_data_file_name)
 
 
-def __clean_train_data_dir_if_needed(directory: str) -> None:
+def _clean_train_data_dir_if_needed(directory: str) -> None:
     # Get a list of all subdirectories
     subdirectories = [
         os.path.join(directory, d)
@@ -378,14 +378,14 @@ def __clean_train_data_dir_if_needed(directory: str) -> None:
         if os.path.isdir(os.path.join(directory, d))
     ]
 
-    # If there are more than 10 subdirectories
-    if len(subdirectories) > 10:
+    # If there are more than 5 subdirectories
+    if len(subdirectories) > 5:
         # Sort the subdirectories alphabetically
         subdirectories.sort()
 
-        # Remove the ones that are on top of the sorted list until only 10
+        # Remove the ones that are on top of the sorted list until only 5
         # remain
-        for subdirectory in subdirectories[:-10]:
+        for subdirectory in subdirectories[:-5]:
             shutil.rmtree(subdirectory)
 
 
@@ -421,9 +421,9 @@ async def predict(
     """
     check_valid_biz_task_model_pair(biz_task, mod_type)
 
-    model_instance = ModelInstance(
-        config.data_path.joinpath(biz_task).joinpath(mod_type).joinpath(project)
-    )
+    model_type_id = f"{biz_task}/{mod_type}/{project}"
+
+    model_instance = models.get_active_model_for_type(model_type_id)
 
     return model_instance.predict(prediction_input)
 

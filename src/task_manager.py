@@ -4,7 +4,7 @@ import threading
 import logging
 import time
 from abc import ABC, abstractmethod
-from model_instance import ModelInstance
+from model_instance import ModelInstance, models
 
 
 class Task(ABC):
@@ -22,6 +22,7 @@ class Task(ABC):
         self._error: Exception = None
         self._time_started = None
         self._time_ended = None
+        self._duration = 0
 
     @property
     def error(self) -> Exception:
@@ -136,6 +137,7 @@ class _TasksQueue:
         self.tasks = queue.Queue(maxsize=0)
         self._successfully_executed_tasks = []
         self._unsuccessfully_executed_tasks = []
+        self._current_executing_tasks = []
 
     def submit(self, task: Task):
         assert task is not None
@@ -166,6 +168,12 @@ class _TasksQueue:
         return {
             "currenttime": datetime.now().isoformat(),
             "enqued": {"count": self.size, "tasks": self.task_list_str},
+            "executing": {
+                "count": len(self._current_executing_tasks),
+                "tasks": [task.to_json() for task in self._current_executing_tasks][
+                    ::-1
+                ],
+            },
             "succeed": {
                 "count": len(self._successfully_executed_tasks),
                 "tasks": [task.to_json() for task in self._successfully_executed_tasks][
@@ -181,41 +189,34 @@ class _TasksQueue:
         }
 
 
-tasks_queue = _TasksQueue()
-
-
-class TasksExecutor:
-
-    # make TasksExecutor a singleton
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        if not isinstance(cls._instance, cls):
-            cls._instance = super(TasksExecutor, cls).__new__(cls, *args, **kwargs)
-        return cls._instance
+class _TasksExecutor:
 
     def __init__(self):
-        self.thread = threading.Thread(target=self.run)
-        self.thread.daemon = True
-        self.thread.start()
+        self._thread = threading.Thread(target=self.run)
+        self._thread.daemon = True
+        self._thread.start()
 
     @property
-    def queue(self):
-        return tasks_queue
+    def is_running(self):
+        return self._thread.is_alive()
 
     def run(self):
         while True:
             try:
                 # Blocking call
                 task: Task = tasks_queue.tasks.get(block=True, timeout=None)
+                # pylint: disable=protected-access
+                tasks_queue._current_executing_tasks.append(task)
                 logging.info("Executing task: `%s`", task)
                 task.run()
                 task.model_instance.reload_state()
+                tasks_queue._current_executing_tasks.remove(task)
                 tasks_queue._successfully_executed_tasks.append(task)
                 logging.info("Task executed succesfully: `%s`", task)
             except Exception as e:
                 logging.error("Error executing task `%s`: %s", task, e)
                 task.error = e
+                # pylint: disable=protected-access
                 tasks_queue._unsuccessfully_executed_tasks.append(task)
                 time.sleep(1)
             finally:
@@ -225,3 +226,10 @@ class TasksExecutor:
                     "Removed task. Remaining tasks in queue: %s",
                     tasks_queue.size,
                 )
+                logging.debug("Reloading models at the end of Task execution")
+                models.reload()
+                logging.debug("Models reloaded and the end of Task execution")
+
+
+tasks_queue = _TasksQueue()
+tasks_executor = _TasksExecutor()

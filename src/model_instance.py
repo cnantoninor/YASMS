@@ -9,16 +9,18 @@ import os
 from pathlib import Path
 import pickle
 import traceback
+from typing import Dict, List
 import numpy
 import pandas as pd
 
 from pandas import DataFrame
 from sklearn.pipeline import Pipeline
-from config import Constants
+from config import Constants, data_path
 
 from environment import is_test_environment
 from prediction_model import PredictionInput, PredictionOutput
 from utils import import_class_from_string
+import time
 
 
 logger = logging.getLogger(__name__)
@@ -63,18 +65,20 @@ class ModelInterface(ABC):
         """
 
 
-class Models:
+class _Models:
 
-    def __init__(self, root_data_dir: str):
+    def __init__(self, root_data_dir: str, debug: bool = False):
         # Dictionary of models for serving, i.e. project_name:str ->
         # model_instance : ModelInstance
-        self._servable_dict = {}
+        self._servable_dict: Dict[str, List[ModelInstance]] = {}
         # Dictionary of models for training, i.e. project_name:str ->
         # model_instance : ModelInstance
-        self._trainable_dict = {}
+        self._trainable_dict: Dict[str, List[ModelInstance]] = {}
         # Dictionary of models in other states, i.e. project_name:str ->
         # model_instance : ModelInstance
-        self._other_dict = {}
+        self._other_dict: Dict[str, List[ModelInstance]] = {}
+
+        self._debug = debug
 
         self._populate(root_data_dir)
         self._root_data_dir = root_data_dir
@@ -82,29 +86,58 @@ class Models:
     def __iter__(self):
         return chain(self._servable_dict.values(), self._trainable_dict.values())
 
-    # size of the models
+    # size
     def __len__(self):
-        return (
-            len(self._servable_dict) + len(self._trainable_dict) + len(self._other_dict)
-        )
+        # return the total number of models for each dict key sum the len of the value list
+        tot = 0
+        for _, v in self._servable_dict.items():
+            tot += len(v)
+        for _, v in self._trainable_dict.items():
+            tot += len(v)
+        for _, v in self._other_dict.items():
+            tot += len(v)
+        return tot
 
     def __str__(self) -> str:
         return json.dumps(self.to_json())
 
-    def add_if_makes_sense(self, model_instance: ModelInstance) -> None:
+    def _add(self, model_instance: ModelInstance) -> None:
+        model_type_id = model_instance.type_identifier
         if model_instance.is_servable():
-            self._servable_dict[model_instance.identifier] = model_instance
-            logging.debug("Added model instance `%s` as it is servable", model_instance)
+            models_for_type = self._servable_dict.get(model_type_id, [])
+            models_for_type.append(model_instance)
+            self._servable_dict[model_type_id] = models_for_type
+            logging.debug("Added model instance `%s` as servable", model_instance)
         elif model_instance.is_trainable():
-            self._trainable_dict[model_instance.identifier] = model_instance
-            logging.debug(
-                "Added model instance `%s` as it is trainable", model_instance
-            )
+            models_for_type = self._trainable_dict.get(model_type_id, [])
+            models_for_type.append(model_instance)
+            self._trainable_dict[model_type_id] = models_for_type
+            logging.debug("Added model instance `%s` as trainable", model_instance)
         else:
-            self._other_dict[model_instance.identifier] = model_instance
-            logging.debug(
-                "Added model instance `%s` as it is in other state", model_instance
-            )
+            models_for_type = self._other_dict.get(model_type_id, [])
+            models_for_type.append(model_instance)
+            self._other_dict[model_type_id] = models_for_type
+            logging.debug("Added model instance `%s` as other", model_instance)
+
+    def get_active_model_for_type(self, model_type_id: str):
+        if model_type_id in self._servable_dict:
+            return self._servable_dict[model_type_id][0]
+        if model_type_id in self._trainable_dict:
+            return self._trainable_dict[model_type_id][0]
+        raise ValueError(
+            f"No active model found for passed model type id:`{model_type_id}`, available model types are:`{self._servable_dict.keys()}`"
+        )
+
+    def find_model_instance(self, model_instance_id: str) -> ModelInstance:
+        for model_instances in chain(
+            self._servable_dict.values(),
+            self._trainable_dict.values(),
+            self._other_dict.values(),
+        ):
+            for model_instance in model_instances:
+                if model_instance.identifier == model_instance_id:
+                    return model_instance
+        return None
 
     @property
     def root_data_dir(self):
@@ -122,10 +155,34 @@ class Models:
     def trainable(self):
         return self._trainable_dict
 
-    def clear(self):
+    @property
+    def trainable_model_instances(self):
+        return list(chain(*self._trainable_dict.values()))
+
+    @property
+    def servable_model_instances(self):
+        return list(chain(*self._servable_dict.values()))
+
+    @property
+    def other_model_instances(self):
+        return list(chain(*self._other_dict.values()))
+
+    def clear(self) -> _Models:
         self._servable_dict.clear()
         self._trainable_dict.clear()
         self._other_dict.clear()
+        return self
+
+    def reload(self) -> _Models:
+        start_time = time.time()
+
+        self.clear()
+        self._populate(self._root_data_dir)
+
+        duration = time.time() - start_time
+        logging.debug("Reload method duration: %s seconds", duration)
+
+        return self
 
     def to_json(self, verbose: bool = False):
 
@@ -142,7 +199,7 @@ class Models:
                 "other": {k: v.to_json() for k, v in self._other_dict.items()},
             }
 
-    def _populate(self, dir_name: str) -> Models:
+    def _populate(self, dir_name: str) -> _Models:
         # check directory exists
         if not os.path.exists(dir_name):
             raise FileNotFoundError(f"Directory {dir_name} not found")
@@ -156,7 +213,7 @@ class Models:
             if len(subdirs) - root_len == 4:
                 try:
                     model_instance = ModelInstance(subdir)
-                    self.add_if_makes_sense(model_instance)
+                    self._add(model_instance)
                 except Exception as e:
                     logging.error(
                         "Skipping dir `%s` due to error creating ModelInstance: %s\n%s",
@@ -524,3 +581,6 @@ class ModelInstance:
             },
         }
         return data
+
+
+models = _Models(data_path.as_posix())

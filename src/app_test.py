@@ -7,8 +7,9 @@ import unittest
 from fastapi.testclient import TestClient
 import config
 from app import app, determine_model_instance_name_date_path
-from model_instance import ModelInstance, ModelInstanceStateEnum
+from model_instance import ModelInstance, ModelInstanceStateEnum, models
 from utils_test import test_data__data_uploaded_path, test_data_path
+from task_manager import tasks_executor, tasks_queue
 
 client = TestClient(app)
 
@@ -173,13 +174,33 @@ class TestApp(unittest.TestCase):
 
     def test_predict(self):
 
+        tasks_queue.clear()
+
         response = self.upload_test_data()
+
+        self.assertEqual(response.status_code, 200)
 
         biz_task = response.json()["modelInstance"]["task"]
         mod_type = response.json()["modelInstance"]["type"]
         project = response.json()["modelInstance"]["project"]
+        instance_name = response.json()["modelInstance"]["instance_name"]
+        model_instance_id = (
+            biz_task + "/" + mod_type + "/" + project + "/" + instance_name
+        )
 
-        sleep(5)
+        count = 0
+        # Wait for the servable model instance to be created
+        while models.find_model_instance(model_instance_id) is None:
+            sleep(1)
+            count += 1
+            # after 5 seconds we should have the model instance created, raise an error otherwise
+            if count > 5:
+                raise Exception("Model instance not created in 5 seconds")
+
+        mi = models.find_model_instance(model_instance_id)
+        print(mi.to_json())
+
+        self.assertTrue(mi.is_servable())
 
         # Define a mock request
         json_request = {"features": [{"name": "Testo", "value": "string"}]}

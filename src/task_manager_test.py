@@ -1,7 +1,9 @@
+import importlib
 import time
 import unittest
 from unittest.mock import MagicMock, patch
-from task_manager import Task, tasks_queue, TasksExecutor
+from task_manager import Task, tasks_queue, tasks_executor
+import task_manager
 
 
 class DummyTask(Task):
@@ -29,8 +31,7 @@ class TestTasksQueue(unittest.TestCase):
         with patch("logging.info") as mocked_log:
             tasks_queue.submit(task)
             self.assertEqual(tasks_queue.size, 1)
-            mocked_log.assert_called_once_with(
-                "Adding task to queue: `%s`", task)
+            mocked_log.assert_called_once_with("Adding task to queue: `%s`", task)
 
     def test_size(self):
         self.assertEqual(tasks_queue.size, 0)
@@ -54,9 +55,13 @@ class TestSubscriber(unittest.TestCase):
         with patch("logging.info") as mocked_log:
             tasks_queue.submit(task)
             self.assertEqual(tasks_queue.size, 1)
-            TasksExecutor()
+            self.assertTrue(tasks_queue.tasks.not_empty)
+            self.assertTrue(tasks_executor.is_running)
             time.sleep(0.2)
-            self.assertEqual(tasks_queue.size, 0)
+            print(tasks_queue.to_json())
+            self.assertTrue(
+                task in tasks_queue._successfully_executed_tasks,
+            )
             mocked_log.assert_any_call("Adding task to queue: `%s`", task)
             mocked_log.assert_any_call("Executing task: `%s`", task)
             mocked_log.assert_any_call("Task executed succesfully: `%s`", task)
