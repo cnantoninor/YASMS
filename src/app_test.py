@@ -89,12 +89,14 @@ class TestApp(unittest.TestCase):
         response = self.upload_test_data()
         self.assert_upload_response(response)
 
-    def upload_test_data(self):
+    def upload_test_data(
+        self, file_path=(test_data__data_uploaded_path / "model_data.csv").as_posix()
+    ):
         mod_type = "test_model"
         biz_task = config.Constants.BIZ_TASK_SPAM
         project = "test_project"
 
-        with open(test_data__data_uploaded_path / "model_data.csv", "rb") as file:
+        with open(file_path, "rb") as file:
             file_data = file.read()
 
         response = client.post(
@@ -105,7 +107,7 @@ class TestApp(unittest.TestCase):
             },
             files={
                 "train_data": (
-                    "model_data.csv",
+                    file_path,
                     file_data,
                     "application/csv",
                 )
@@ -174,9 +176,11 @@ class TestApp(unittest.TestCase):
 
     def test_predict(self):
 
-        tasks_queue.clear()
+        tasks_executor.reset()
 
-        response = self.upload_test_data()
+        response = self.upload_test_data(
+            "test_data/23457ec5-79c6-4542-a14a-14a3c96d90cb.csv"
+        )
 
         self.assertEqual(response.status_code, 200)
 
@@ -189,7 +193,7 @@ class TestApp(unittest.TestCase):
         )
 
         count = 0
-        # Wait for the servable model instance to be created
+        # Wait for the model instance to be created
         while models.find_model_instance(model_instance_id) is None:
             sleep(1)
             count += 1
@@ -198,8 +202,10 @@ class TestApp(unittest.TestCase):
                 raise Exception("Model instance not created in 5 seconds")
 
         mi = models.find_model_instance(model_instance_id)
-        print(mi.to_json())
+        self.assertTrue(mi.is_trainable)
 
+        mi.train()
+        print(mi.to_json())
         self.assertTrue(mi.is_servable())
 
         # Define a mock request

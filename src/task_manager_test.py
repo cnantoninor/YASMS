@@ -1,13 +1,12 @@
-import importlib
 import time
 import unittest
 from unittest.mock import MagicMock, patch
 from task_manager import Task, tasks_queue, tasks_executor
-import task_manager
 
 
 class DummyTask(Task):
 
+    # pylint: disable=useless-super-delegation
     def __init__(self, modelInstanceMock=MagicMock()):
         super().__init__(modelInstanceMock)
 
@@ -50,17 +49,20 @@ class TestSubscriber(unittest.TestCase):
         tasks_queue.clear()
 
     def test_run(self):
+        tasks_executor.reset()
+        self.assertTrue(tasks_executor.is_running)
         self.assertEqual(tasks_queue.size, 0)
         task = DummyTask()
         with patch("logging.info") as mocked_log:
             tasks_queue.submit(task)
             self.assertEqual(tasks_queue.size, 1)
-            self.assertTrue(tasks_queue.tasks.not_empty)
             self.assertTrue(tasks_executor.is_running)
-            time.sleep(0.2)
+            time.sleep(0.5)
             print(tasks_queue.to_json())
-            self.assertTrue(
-                task in tasks_queue._successfully_executed_tasks,
+            # pylint: disable=protected-access
+            self.assertEqual(
+                len(tasks_queue._successfully_executed_tasks),
+                1,
             )
             mocked_log.assert_any_call("Adding task to queue: `%s`", task)
             mocked_log.assert_any_call("Executing task: `%s`", task)

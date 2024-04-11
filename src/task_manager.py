@@ -4,6 +4,7 @@ import threading
 import logging
 import time
 from abc import ABC, abstractmethod
+from environment import is_test_environment
 from model_instance import ModelInstance, models
 
 
@@ -151,13 +152,16 @@ class _TasksQueue:
 
     def clear(self):
         self.tasks.queue.clear()
+        self._successfully_executed_tasks = []
+        self._unsuccessfully_executed_tasks = []
+        self._current_executing_tasks = []
 
     @property
     def size(self):
         return self.tasks.qsize()
 
     @property
-    def is_empty(self):
+    def empty(self):
         return self.tasks.empty()
 
     @property
@@ -192,18 +196,41 @@ class _TasksQueue:
 class _TasksExecutor:
 
     def __init__(self):
+        self._should_run = None
+        self._start()
+
+    def _start(self):
+        if self.is_running is True:
+            raise Exception("Executor is already running")
         self._thread = threading.Thread(target=self.run)
         self._thread.daemon = True
+        self._should_run = True
         self._thread.start()
 
     @property
     def is_running(self):
-        return self._thread.is_alive()
+        return self._should_run and self._thread.is_alive()
+
+    def reset(self) -> None:
+        """
+        DANGER: Clean the queue and restart the executor.
+        This method is intended for testing purposes only.
+        """
+        self._stop()
+        tasks_queue.clear()
+        self._start()
+
+    def _stop(self):
+        self._should_run = False
+        self._thread.join()
 
     def run(self):
-        while True:
+        while self._should_run:
+            if tasks_queue.empty:
+                logging.debug("No tasks in queue. Waiting for tasks...")
+                self.wait()
+                continue
             try:
-                # Blocking call
                 task: Task = tasks_queue.tasks.get(block=True, timeout=None)
                 # pylint: disable=protected-access
                 tasks_queue._current_executing_tasks.append(task)
@@ -218,17 +245,28 @@ class _TasksExecutor:
                 task.error = e
                 # pylint: disable=protected-access
                 tasks_queue._unsuccessfully_executed_tasks.append(task)
-                time.sleep(1)
             finally:
-                # free the thread resource from eventual poisoned tasks
-                tasks_queue.tasks.task_done()
-                logging.info(
-                    "Removed task. Remaining tasks in queue: %s",
-                    tasks_queue.size,
-                )
-                logging.debug("Reloading models at the end of Task execution")
-                models.reload()
-                logging.debug("Models reloaded and the end of Task execution")
+                try:
+                    # free the thread resource from eventual poisoned tasks
+                    if tasks_queue.empty is False:
+                        tasks_queue.tasks.task_done()
+                        logging.info(
+                            "Removed task. Remaining tasks in queue: %s",
+                            tasks_queue.size,
+                        )
+                    logging.debug("Reloading models at the end of Task execution")
+                    models.reload()
+                    logging.debug("Models reloaded and the end of Task execution")
+                except Exception as e:
+                    logging.error(
+                        "Error in cleaning up resources and reloading models: %s", e
+                    )
+
+    def wait(self):
+        if is_test_environment():
+            time.sleep(0.1)
+        else:
+            time.sleep(10)
 
 
 tasks_queue = _TasksQueue()
