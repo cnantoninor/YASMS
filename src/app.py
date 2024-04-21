@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 import pandas as pd
 from app_startup import bootstrap_app
 import config
-from model_instance import ModelInstance, _Models, models
+from model_instance import ModelInstance, models
 from prediction_model import PredictionInput, PredictionOutput
 from utils import check_valid_biz_task_model_pair
 from task_manager import tasks_queue
@@ -23,7 +23,7 @@ from trainer import TrainingTask
 
 bootstrap_app()
 
-app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.4")
+app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.9")
 
 
 @app.exception_handler(RequestValidationError)
@@ -195,7 +195,8 @@ async def get_tasks_queue():
 async def get_active_models():
     """
 
-    Retrieves the details of all the active models.
+    Retrieves the details of all the active model instances for each model type.
+    An active model is the newest model instance for each model type.
 
     """
     return JSONResponse(content={"activeModels": models.get_active_models()})

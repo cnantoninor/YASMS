@@ -10,7 +10,7 @@ from app import app, determine_model_instance_name_date_path
 from model_instance import ModelInstance, ModelInstanceStateEnum, models
 from prediction_model import Feature, PredictionInput
 from utils_test import test_data__data_uploaded_path, test_data_path
-from task_manager import tasks_executor, tasks_queue
+from task_manager import tasks_executor
 
 client = TestClient(app)
 
@@ -61,6 +61,7 @@ class TestApp(unittest.TestCase):
 
         self.assert_upload_response(response)
 
+    # pylint: disable=dangerous-default-value
     def assert_upload_response(
         self, response, features_fields=["Testo"], target_field="Stato Workflow"
     ):

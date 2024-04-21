@@ -1,7 +1,7 @@
 import logging
 import config
 from model_instance import models
-from task_manager import tasks_queue, tasks_executor
+from task_manager import tasks_queue
 from trainer import TrainingTask
 from utils import is_test_environment
 

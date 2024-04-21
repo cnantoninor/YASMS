@@ -51,7 +51,7 @@ class ModelInterface(ABC):
         pass
 
     @abstractmethod
-    def predict(self, features: dict[str, any]) -> PredictionOutput:
+    def predict(self, prediction_input: PredictionInput) -> PredictionOutput:
         """
         Given the dictionary of features which must be the same of the train features,
         predict the output and return the PredictionOutput annotations.
