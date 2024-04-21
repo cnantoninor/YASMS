@@ -209,9 +209,18 @@ class _Models:
             }
         else:
             return {
-                "servable": {k: v.to_json() for k, v in self._servable_dict.items()},
-                "trainable": {k: v.to_json() for k, v in self._trainable_dict.items()},
-                "other": {k: v.to_json() for k, v in self._other_dict.items()},
+                "servable": {
+                    k: [item.to_json() for item in v]
+                    for k, v in self._servable_dict.items()
+                },
+                "trainable": {
+                    k: [item.to_json() for item in v]
+                    for k, v in self._trainable_dict.items()
+                },
+                "other": {
+                    k: [item.to_json() for item in v]
+                    for k, v in self._other_dict.items()
+                },
             }
 
     def _populate(self, dir_name: str) -> _Models:

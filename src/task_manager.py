@@ -156,6 +156,23 @@ class _TasksQueue:
         self._unsuccessfully_executed_tasks = []
         self._current_executing_tasks = []
 
+    def _add_successfully_executed_task(self, task):
+        if len(self._successfully_executed_tasks) >= 10:
+            self._successfully_executed_tasks.pop(0)
+        self._successfully_executed_tasks.append(task)
+        self._current_executing_tasks.remove(task)
+
+    def _add_unsuccessfully_executed_task(self, task):
+        if len(self._unsuccessfully_executed_tasks) >= 10:
+            self._unsuccessfully_executed_tasks.pop(0)
+        self._unsuccessfully_executed_tasks.append(task)
+        self._current_executing_tasks.remove(task)
+
+    def _add_current_executing_task(self, task):
+        if len(self._current_executing_tasks) >= 10:
+            self._current_executing_tasks.pop(0)
+        self._current_executing_tasks.append(task)
+
     @property
     def size(self):
         return self.tasks.qsize()
@@ -233,18 +250,17 @@ class _TasksExecutor:
             try:
                 task: Task = tasks_queue.tasks.get(block=True, timeout=None)
                 # pylint: disable=protected-access
-                tasks_queue._current_executing_tasks.append(task)
+                tasks_queue._add_current_executing_task(task)
                 logging.info("Executing task: `%s`", task)
                 task.run()
                 task.model_instance.reload_state()
-                tasks_queue._current_executing_tasks.remove(task)
-                tasks_queue._successfully_executed_tasks.append(task)
+                tasks_queue._add_successfully_executed_task(task)
                 logging.info("Task executed succesfully: `%s`", task)
             except Exception as e:
                 logging.error("Error executing task `%s`: %s", task, e)
                 task.error = e
                 # pylint: disable=protected-access
-                tasks_queue._unsuccessfully_executed_tasks.append(task)
+                tasks_queue._add_unsuccessfully_executed_task(task)
             finally:
                 try:
                     # free the thread resource from eventual poisoned tasks
