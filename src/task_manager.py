@@ -4,7 +4,8 @@ import threading
 import logging
 import time
 from abc import ABC, abstractmethod
-from model_instance import ModelInstance
+from environment import is_test_environment
+from model_instance import ModelInstance, models
 
 
 class Task(ABC):
@@ -22,6 +23,7 @@ class Task(ABC):
         self._error: Exception = None
         self._time_started = None
         self._time_ended = None
+        self._duration = 0
 
     @property
     def error(self) -> Exception:
@@ -136,6 +138,7 @@ class _TasksQueue:
         self.tasks = queue.Queue(maxsize=0)
         self._successfully_executed_tasks = []
         self._unsuccessfully_executed_tasks = []
+        self._current_executing_tasks = []
 
     def submit(self, task: Task):
         assert task is not None
@@ -149,13 +152,33 @@ class _TasksQueue:
 
     def clear(self):
         self.tasks.queue.clear()
+        self._successfully_executed_tasks = []
+        self._unsuccessfully_executed_tasks = []
+        self._current_executing_tasks = []
+
+    def _add_successfully_executed_task(self, task):
+        if len(self._successfully_executed_tasks) >= 10:
+            self._successfully_executed_tasks.pop(0)
+        self._successfully_executed_tasks.append(task)
+        self._current_executing_tasks.remove(task)
+
+    def _add_unsuccessfully_executed_task(self, task):
+        if len(self._unsuccessfully_executed_tasks) >= 10:
+            self._unsuccessfully_executed_tasks.pop(0)
+        self._unsuccessfully_executed_tasks.append(task)
+        self._current_executing_tasks.remove(task)
+
+    def _add_current_executing_task(self, task):
+        if len(self._current_executing_tasks) >= 10:
+            self._current_executing_tasks.pop(0)
+        self._current_executing_tasks.append(task)
 
     @property
     def size(self):
         return self.tasks.qsize()
 
     @property
-    def is_empty(self):
+    def empty(self):
         return self.tasks.empty()
 
     @property
@@ -166,6 +189,12 @@ class _TasksQueue:
         return {
             "currenttime": datetime.now().isoformat(),
             "enqued": {"count": self.size, "tasks": self.task_list_str},
+            "executing": {
+                "count": len(self._current_executing_tasks),
+                "tasks": [task.to_json() for task in self._current_executing_tasks][
+                    ::-1
+                ],
+            },
             "succeed": {
                 "count": len(self._successfully_executed_tasks),
                 "tasks": [task.to_json() for task in self._successfully_executed_tasks][
@@ -181,47 +210,80 @@ class _TasksQueue:
         }
 
 
-tasks_queue = _TasksQueue()
-
-
-class TasksExecutor:
-
-    # make TasksExecutor a singleton
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        if not isinstance(cls._instance, cls):
-            cls._instance = super(TasksExecutor, cls).__new__(cls, *args, **kwargs)
-        return cls._instance
+class _TasksExecutor:
 
     def __init__(self):
-        self.thread = threading.Thread(target=self.run)
-        self.thread.daemon = True
-        self.thread.start()
+        self._should_run = None
+        self._start()
+
+    def _start(self):
+        if self.is_running is True:
+            raise Exception("Executor is already running")
+        self._thread = threading.Thread(target=self.run)
+        self._thread.daemon = True
+        self._should_run = True
+        self._thread.start()
 
     @property
-    def queue(self):
-        return tasks_queue
+    def is_running(self):
+        return self._should_run and self._thread.is_alive()
+
+    def reset(self) -> None:
+        """
+        DANGER: Clean the queue and restart the executor.
+        This method is intended for testing purposes only.
+        """
+        self._stop()
+        tasks_queue.clear()
+        self._start()
+
+    def _stop(self):
+        self._should_run = False
+        self._thread.join()
 
     def run(self):
-        while True:
+        while self._should_run:
+            if tasks_queue.empty:
+                logging.debug("No tasks in queue. Waiting for tasks...")
+                self.wait()
+                continue
             try:
-                # Blocking call
                 task: Task = tasks_queue.tasks.get(block=True, timeout=None)
+                # pylint: disable=protected-access
+                tasks_queue._add_current_executing_task(task)
                 logging.info("Executing task: `%s`", task)
                 task.run()
                 task.model_instance.reload_state()
-                tasks_queue._successfully_executed_tasks.append(task)
+                tasks_queue._add_successfully_executed_task(task)
                 logging.info("Task executed succesfully: `%s`", task)
             except Exception as e:
                 logging.error("Error executing task `%s`: %s", task, e)
                 task.error = e
-                tasks_queue._unsuccessfully_executed_tasks.append(task)
-                time.sleep(1)
+                # pylint: disable=protected-access
+                tasks_queue._add_unsuccessfully_executed_task(task)
             finally:
-                # free the thread resource from eventual poisoned tasks
-                tasks_queue.tasks.task_done()
-                logging.info(
-                    "Removed task. Remaining tasks in queue: %s",
-                    tasks_queue.size,
-                )
+                try:
+                    # free the thread resource from eventual poisoned tasks
+                    if tasks_queue.empty is False:
+                        tasks_queue.tasks.task_done()
+                        logging.info(
+                            "Removed task. Remaining tasks in queue: %s",
+                            tasks_queue.size,
+                        )
+                    logging.debug("Reloading models at the end of Task execution")
+                    models.reload()
+                    logging.debug("Models reloaded and the end of Task execution")
+                except Exception as e:
+                    logging.error(
+                        "Error in cleaning up resources and reloading models: %s", e
+                    )
+
+    def wait(self):
+        if is_test_environment():
+            time.sleep(2)
+        else:
+            time.sleep(10)
+
+
+tasks_queue = _TasksQueue()
+tasks_executor = _TasksExecutor()

@@ -9,15 +9,19 @@ import os
 from pathlib import Path
 import pickle
 import traceback
+from typing import Dict, List
 import numpy
 import pandas as pd
 
 from pandas import DataFrame
 from sklearn.pipeline import Pipeline
-from config import Constants
+from config import Constants, data_path
 
 from environment import is_test_environment
+from prediction_model import PredictionInput, PredictionOutput
 from utils import import_class_from_string
+import time
+
 
 logger = logging.getLogger(__name__)
 
@@ -46,19 +50,35 @@ class ModelInterface(ABC):
     def check_trainable(self) -> None:
         pass
 
+    @abstractmethod
+    def predict(self, prediction_input: PredictionInput) -> PredictionOutput:
+        """
+        Given the dictionary of features which must be the same of the train features,
+        predict the output and return the PredictionOutput annotations.
 
-class Models:
+        Args:
+            features (dict[str, any]): The dictionary of features used for prediction
 
-    def __init__(self, root_data_dir: str):
+        Returns:
+            PredictionOutput: The prediction output
+
+        """
+
+
+class _Models:
+
+    def __init__(self, root_data_dir: str, debug: bool = False):
         # Dictionary of models for serving, i.e. project_name:str ->
         # model_instance : ModelInstance
-        self._servable_dict = {}
+        self._servable_dict: Dict[str, List[ModelInstance]] = {}
         # Dictionary of models for training, i.e. project_name:str ->
         # model_instance : ModelInstance
-        self._trainable_dict = {}
+        self._trainable_dict: Dict[str, List[ModelInstance]] = {}
         # Dictionary of models in other states, i.e. project_name:str ->
         # model_instance : ModelInstance
-        self._other_dict = {}
+        self._other_dict: Dict[str, List[ModelInstance]] = {}
+
+        self._debug = debug
 
         self._populate(root_data_dir)
         self._root_data_dir = root_data_dir
@@ -66,29 +86,73 @@ class Models:
     def __iter__(self):
         return chain(self._servable_dict.values(), self._trainable_dict.values())
 
-    # size of the models
+    # size
     def __len__(self):
-        return (
-            len(self._servable_dict) + len(self._trainable_dict) + len(self._other_dict)
-        )
+        # return the total number of models for each dict key sum the len of the value list
+        tot = 0
+        for _, v in self._servable_dict.items():
+            tot += len(v)
+        for _, v in self._trainable_dict.items():
+            tot += len(v)
+        for _, v in self._other_dict.items():
+            tot += len(v)
+        return tot
 
     def __str__(self) -> str:
         return json.dumps(self.to_json())
 
-    def add_if_makes_sense(self, model_instance: ModelInstance) -> None:
+    def _add(self, model_instance: ModelInstance) -> None:
+        model_type_id = model_instance.type_identifier
         if model_instance.is_servable():
-            self._servable_dict[model_instance.identifier] = model_instance
-            logging.debug("Added model instance `%s` as it is servable", model_instance)
+            models_for_type = self._servable_dict.get(model_type_id, [])
+            models_for_type.append(model_instance)
+            self._servable_dict[model_type_id] = models_for_type
+            logging.debug("Added model instance `%s` as servable", model_instance)
         elif model_instance.is_trainable():
-            self._trainable_dict[model_instance.identifier] = model_instance
-            logging.debug(
-                "Added model instance `%s` as it is trainable", model_instance
-            )
+            models_for_type = self._trainable_dict.get(model_type_id, [])
+            models_for_type.append(model_instance)
+            self._trainable_dict[model_type_id] = models_for_type
+            logging.debug("Added model instance `%s` as trainable", model_instance)
         else:
-            self._other_dict[model_instance.identifier] = model_instance
-            logging.debug(
-                "Added model instance `%s` as it is in other state", model_instance
-            )
+            models_for_type = self._other_dict.get(model_type_id, [])
+            models_for_type.append(model_instance)
+            self._other_dict[model_type_id] = models_for_type
+            logging.debug("Added model instance `%s` as other", model_instance)
+
+    def get_active_model_for_type(self, model_type_id: str) -> ModelInstance:
+        """
+        Get the active model instance for the passed model type id, if not found raise a ValueError.
+        An `active` model instance is the newest servable model instance if available for a model type.
+
+        """
+        if model_type_id in self._servable_dict:
+            return self._servable_dict[model_type_id][0]
+        raise ValueError(
+            f"No trainable or servable model found for passed model type id:`{model_type_id}`, available model types are:`{self._servable_dict.keys()}`"
+        )
+
+    def get_active_models(self):
+        """
+        Get the active model instances for all model types, i.e. the newest servable model instance for each model type.
+        """
+        active_models = {}
+        # pylint: disable=consider-using-dict-items
+        for model_type_id in self._servable_dict.keys():
+            active_models[model_type_id] = self.get_active_model_for_type(
+                model_type_id
+            ).to_json()
+        return active_models
+
+    def find_model_instance(self, model_instance_id: str) -> ModelInstance:
+        for model_instances in chain(
+            self._servable_dict.values(),
+            self._trainable_dict.values(),
+            self._other_dict.values(),
+        ):
+            for model_instance in model_instances:
+                if model_instance.identifier == model_instance_id:
+                    return model_instance
+        return None
 
     @property
     def root_data_dir(self):
@@ -106,10 +170,34 @@ class Models:
     def trainable(self):
         return self._trainable_dict
 
-    def clear(self):
+    @property
+    def trainable_model_instances(self):
+        return list(chain(*self._trainable_dict.values()))
+
+    @property
+    def servable_model_instances(self):
+        return list(chain(*self._servable_dict.values()))
+
+    @property
+    def other_model_instances(self):
+        return list(chain(*self._other_dict.values()))
+
+    def clear(self) -> _Models:
         self._servable_dict.clear()
         self._trainable_dict.clear()
         self._other_dict.clear()
+        return self
+
+    def reload(self) -> _Models:
+        start_time = time.time()
+
+        self.clear()
+        self._populate(self._root_data_dir)
+
+        duration = time.time() - start_time
+        logging.debug("Reload method duration: %s seconds", duration)
+
+        return self
 
     def to_json(self, verbose: bool = False):
 
@@ -121,12 +209,21 @@ class Models:
             }
         else:
             return {
-                "servable": {k: v.to_json() for k, v in self._servable_dict.items()},
-                "trainable": {k: v.to_json() for k, v in self._trainable_dict.items()},
-                "other": {k: v.to_json() for k, v in self._other_dict.items()},
+                "servable": {
+                    k: [item.to_json() for item in v]
+                    for k, v in self._servable_dict.items()
+                },
+                "trainable": {
+                    k: [item.to_json() for item in v]
+                    for k, v in self._trainable_dict.items()
+                },
+                "other": {
+                    k: [item.to_json() for item in v]
+                    for k, v in self._other_dict.items()
+                },
             }
 
-    def _populate(self, dir_name: str) -> Models:
+    def _populate(self, dir_name: str) -> _Models:
         # check directory exists
         if not os.path.exists(dir_name):
             raise FileNotFoundError(f"Directory {dir_name} not found")
@@ -140,7 +237,7 @@ class Models:
             if len(subdirs) - root_len == 4:
                 try:
                     model_instance = ModelInstance(subdir)
-                    self.add_if_makes_sense(model_instance)
+                    self._add(model_instance)
                 except Exception as e:
                     logging.error(
                         "Skipping dir `%s` due to error creating ModelInstance: %s\n%s",
@@ -183,10 +280,14 @@ class ModelInstance:
             raise ValueError(f"Model instance `{self}` is not in a state to be trained")
         self.__logic.check_trainable()
 
+    def check_servable(self):
+        if not self.is_servable():
+            raise ValueError(f"Model instance `{self}` is not in a state to be served")
+
     def is_trainable(self):
         return (
-            self.state == ModelInstanceStateEnum.DATA_UPLOADED
-            or self.state == ModelInstanceStateEnum.TRAINING_IN_PROGRESS
+            self.state is ModelInstanceStateEnum.DATA_UPLOADED
+            or self.state is ModelInstanceStateEnum.TRAINING_IN_PROGRESS
         )
 
     def is_servable(self):
@@ -262,14 +363,6 @@ class ModelInstance:
         components = snake_case_str.split("_")
         return "".join(x.title() for x in components).strip()
 
-    def predict(self):
-        logger.debug(
-            "Predicting using :`%s`",
-            self.__logic,
-        )
-        pipeline: Pipeline = pickle.load(open(self.__model_pickle_file, "rb"))
-        pipeline.predict()
-
     def train(self) -> tuple[pd.DataFrame, numpy.ndarray, Pipeline, float, float]:
         # create training dir if not exists and training in progress file
         if not os.path.exists(self.__training_subdir):
@@ -295,11 +388,11 @@ class ModelInstance:
                 delimiter=",",
             )
 
-            timestats = f"Cross Validation Time: {cv_time} seconds; Fit Time: {fit_time} seconds"
+            timestats = {"cvTimeSecs": cv_time, "fitTimeSecs": fit_time}
             with open(
                 self.__training_subdir + "/time.stats", "w", encoding="utf8"
             ) as f:
-                f.write(timestats)
+                f.write(json.dumps(timestats))
 
             # save the trained model to the model pickle file
             pickle.dump(pipeline, open(self.__model_pickle_file, "wb"))
@@ -311,6 +404,7 @@ class ModelInstance:
             )
             # remove the training in progress file
             os.remove(self.__training_in_progress_file)
+            self.reload_state()
         except Exception as e:
             err_msg = traceback.format_exc()
             # write the error to the training error log file
@@ -318,6 +412,40 @@ class ModelInstance:
                 f.write(err_msg)
             logging.error("Error training model instance `%s`: %s", str(self), err_msg)
             raise e
+
+    def load_model(self) -> Pipeline:
+        self.check_servable()
+        return pickle.load(open(self.__model_pickle_file, "rb"))
+
+    def predict(self, prediction_input: PredictionInput) -> PredictionOutput:
+        """
+        Given the dictionary of features which must be the same of the train features,
+        predict the output and return the PredictionOutput annotations.
+
+        Args:
+            features (dict[str, any]): The dictionary of features used for prediction
+
+        Returns:
+            PredictionOutput: The prediction output
+
+        """
+        self.check_servable()
+        prediction_input.check_valid_features(self.features_fields)
+
+        logger.debug(
+            "Predicting using algorithm `%s` and features `%s`",
+            self.__logic,
+            prediction_input.feature_values,
+        )
+
+        prediction_output: PredictionOutput = self.__logic.predict(prediction_input)
+        logger.debug(
+            "Predicted using algorithm `%s` and features `%s`; returned result: `%s`",
+            self.__logic,
+            prediction_input.feature_values,
+            prediction_output,
+        )
+        return prediction_output
 
     @property
     def __logic(self) -> ModelInterface:
@@ -438,7 +566,7 @@ class ModelInstance:
             return msg
 
         with open(self.__training_subdir + "/time.stats", "r", encoding="utf8") as f:
-            return f.read()
+            return json.loads(f.read())
 
     # Override the __str__ method to return a string representation of the
     # object
@@ -447,13 +575,20 @@ class ModelInstance:
 
     def to_json(self) -> dict:
 
-        training_details = ""
+        training_details = None
         if os.path.exists(self.__training_progress_details_file):
             with open(
                 self.__training_progress_details_file, "r", encoding="utf-8"
             ) as f:
                 training_details = f.read()
-        training_details = [line for line in training_details.split("\n") if line != ""]
+            training_details = [
+                line for line in training_details.split("\n") if line != ""
+            ]
+        metrics_details = None
+        if self.stats_metrics:
+            metrics_details = [
+                line for line in self.stats_metrics.split("\n") if line != ""
+            ]
 
         data = {
             "task": self.task,
@@ -461,15 +596,16 @@ class ModelInstance:
             "project": self.project,
             "instance_name": self.instance,
             "state": self.state.name,
-            "training_details": training_details,
+            "training_log": training_details,
             "features": self.features_fields,
             "target": self.target_field,
             "stats": {
-                "metrics": (
-                    self.stats_metrics.split("\n") if self.stats_metrics else None
-                ),
+                "metrics": metrics_details,
                 "confusion_matrix": self.stats_confusion_matrix,
                 "time": self.stats_time,
             },
         }
         return data
+
+
+models = _Models(data_path.as_posix())

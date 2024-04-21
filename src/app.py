@@ -9,11 +9,13 @@ import zipfile
 import shutil
 from typing import List
 from fastapi import FastAPI, File, Request, UploadFile, Form
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse
 import pandas as pd
 from app_startup import bootstrap_app
 import config
-from model_instance import ModelInstance, Models
+from model_instance import ModelInstance, models
+from prediction_model import PredictionInput, PredictionOutput
 from utils import check_valid_biz_task_model_pair
 from task_manager import tasks_queue
 from trainer import TrainingTask
@@ -21,7 +23,21 @@ from trainer import TrainingTask
 
 bootstrap_app()
 
-app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.3")
+app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.9")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Log the error
+    logging.error("Validation error: %s - Request: %s", exc, request)
+    # Return a JSON response with the details of the validation error
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": exc.errors(),
+            "body": exc.body,
+        },
+    )
 
 
 async def request_to_json(request: Request) -> str:
@@ -83,13 +99,14 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
         content={
             "error": {
                 "code": ret_code,
-                "message": f"Bad Request: {str(exc)}",
+                "message": f"Bad Request: {exc.__class__.__name__} - {str(exc)}",
                 "request": request_json,
             }
         },
     )
 
 
+@app.exception_handler(json.JSONDecodeError)
 @app.exception_handler(Exception)
 async def unhandeld_exception_handler(request: Request, exc: Exception):
     ret_code = 500
@@ -109,7 +126,7 @@ async def unhandeld_exception_handler(request: Request, exc: Exception):
         content={
             "error": {
                 "code": ret_code,
-                "message": f"Unexpected exception: {str(exc)}",
+                "message": f"Unexpected exception: {exc.__class__.__name__} - {str(exc)}",
                 "request": request_json,
             }
         },
@@ -143,15 +160,14 @@ async def get_app_logs():
         applog = f.read().split("\n")[::-1]
         applog = [line for line in applog if line.strip()]
 
-    uvicorn_log = []
     if os.path.exists(config.UVICORN_LOG_FILE):
         with open(config.UVICORN_LOG_FILE, encoding="utf-8") as f:
             uvicorn_log = f.read().split("\n")[::-1]
             uvicorn_log = [line for line in uvicorn_log if line.strip()]
     else:
         logging.warning("Uvicorn log file not found: %s", config.UVICORN_LOG_FILE)
+        logging.warning("Uvicorn log file not found: %s", config.UVICORN_LOG_FILE)
 
-    uvicorn_err_log = []
     if os.path.exists(config.UVICORN_ERR_LOG_FILE):
         with open(config.UVICORN_ERR_LOG_FILE, encoding="utf-8") as f:
             uvicorn_err_log = f.read().split("\n")[::-1]
@@ -179,10 +195,11 @@ async def get_tasks_queue():
 async def get_active_models():
     """
 
-    # NOT IMPLEMENTED YET
+    Retrieves the details of all the active model instances for each model type.
+    An active model is the newest model instance for each model type.
 
     """
-    raise NotImplementedError("This endpoint is not implemented yet.")
+    return JSONResponse(content={"activeModels": models.get_active_models()})
 
 
 @app.get("/models", tags=["models"])
@@ -193,9 +210,7 @@ async def get_all_models():
     # Returns:
         dict: A dictionary containing the state of all the model instances.
     """
-    return JSONResponse(
-        content={"models": Models(config.data_path.as_posix()).to_json(verbose=True)}
-    )
+    return JSONResponse(content={"models": models.to_json(verbose=True)})
 
 
 @app.get("/models/registered_types", tags=["models"])
@@ -280,15 +295,16 @@ async def upload_train_data(
         with zipfile.ZipFile(io.BytesIO(contents), "r") as zip_ref:
             zip_ref.extractall(path=uploaded_data_dir)
     else:
+        filename = os.path.basename(train_data.filename)
         # If it's not a zip file, write it directly
-        with open(os.path.join(uploaded_data_dir, train_data.filename), "wb") as f:
+        with open(os.path.join(uploaded_data_dir, filename), "wb") as f:
             f.write(contents)
 
-    __write_features_and_target_fields(uploaded_data_dir, features_fields, target_field)
-    __check_csv_file(uploaded_data_dir, features_fields, target_field)
+    _write_features_and_target_fields(uploaded_data_dir, features_fields, target_field)
+    _check_csv_file(uploaded_data_dir, features_fields, target_field)
     model_instance = ModelInstance(uploaded_data_dir.as_posix())
     tasks_queue.submit(TrainingTask(model_instance))
-    __clean_train_data_dir_if_needed(uploaded_data_dir.parent)
+    _clean_train_data_dir_if_needed(uploaded_data_dir.parent)
 
     logging.info(
         """Successfully uploaded train data and submitted train task for ModelInstance: `%s`""",
@@ -303,7 +319,7 @@ async def upload_train_data(
     )
 
 
-def __write_features_and_target_fields(directory, features_fields, target_field):
+def _write_features_and_target_fields(directory, features_fields, target_field):
     with open(
         os.path.join(directory, config.Constants.FEATURES_FIELDS_FILE),
         "w",
@@ -319,7 +335,7 @@ def __write_features_and_target_fields(directory, features_fields, target_field)
         f.write(target_field)
 
 
-def __check_csv_file(directory, features_fields, target_field):
+def _check_csv_file(directory, features_fields, target_field):
     csv_files = glob.glob(os.path.join(directory, "*.csv"))
     if len(csv_files) == 0:
         raise ValueError(f"No CSV file found in the train data dir: {directory}.")
@@ -354,7 +370,7 @@ def __check_csv_file(directory, features_fields, target_field):
     os.rename(file_name, model_data_file_name)
 
 
-def __clean_train_data_dir_if_needed(directory: str) -> None:
+def _clean_train_data_dir_if_needed(directory: str) -> None:
     # Get a list of all subdirectories
     subdirectories = [
         os.path.join(directory, d)
@@ -362,14 +378,14 @@ def __clean_train_data_dir_if_needed(directory: str) -> None:
         if os.path.isdir(os.path.join(directory, d))
     ]
 
-    # If there are more than 10 subdirectories
-    if len(subdirectories) > 10:
+    # If there are more than 5 subdirectories
+    if len(subdirectories) > 5:
         # Sort the subdirectories alphabetically
         subdirectories.sort()
 
-        # Remove the ones that are on top of the sorted list until only 10
+        # Remove the ones that are on top of the sorted list until only 5
         # remain
-        for subdirectory in subdirectories[:-10]:
+        for subdirectory in subdirectories[:-5]:
             shutil.rmtree(subdirectory)
 
 
@@ -379,26 +395,37 @@ def determine_model_instance_name_date_path() -> str:
     return date_time_str
 
 
-@app.post("/models/{biz_task}/{mod_type}/{project}/predict", tags=["models"])
+@app.post(
+    "/models/{biz_task}/{mod_type}/{project}/predict",
+    tags=["models"],
+    response_model=PredictionOutput,
+)
 async def predict(
     biz_task: str,
     mod_type: str,
     project: str,
-):
+    prediction_input: PredictionInput,
+) -> PredictionOutput:
     """
-
-    # NOT IMPLEMENTED YET
-
-    Perform the inference using the specified model type and name.
+    Perform a prediction based on the given parameters.
 
     Args:
-        biz_task (str): The type of the model.
-        mod_type (str): The name of the model.
+        biz_task (str): The business task for the prediction.
+        mod_type (str): The type of model to use for the prediction.
+        project (str): The project to use for the prediction.
+        features (List[str]): The list of features to use for the prediction.
 
     Returns:
-        dict: A dictionary containing the inference results.
+        PredictionOutput: The prediction output object. This object contains the timestamp of the prediction, the model ID, and the predictions.
+            Predictions are a list of features and their corresponding predicted values.
     """
-    pass
+    check_valid_biz_task_model_pair(biz_task, mod_type)
+
+    model_type_id = f"{biz_task}/{mod_type}/{project}"
+
+    model_instance = models.get_active_model_for_type(model_type_id)
+
+    return model_instance.predict(prediction_input)
 
 
 @app.get("/isalive", tags=["observability"])

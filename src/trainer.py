@@ -16,5 +16,5 @@ class TrainingTask(Task):
         if not is_test_environment():
             self.model_instance.train()
         else:
-            logging.info("Running in test environment. Task not executed.")
+            logging.info("Running in test environment. Skipping TrainingTask!")
         logging.debug("END Execute training task `%s`", self)

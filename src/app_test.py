@@ -1,4 +1,5 @@
 import os
+from time import sleep
 import zipfile
 from datetime import datetime
 import io
@@ -6,8 +7,10 @@ import unittest
 from fastapi.testclient import TestClient
 import config
 from app import app, determine_model_instance_name_date_path
-from model_instance import ModelInstance, ModelInstanceStateEnum
+from model_instance import ModelInstance, ModelInstanceStateEnum, models
+from prediction_model import Feature, PredictionInput
 from utils_test import test_data__data_uploaded_path, test_data_path
+from task_manager import tasks_executor
 
 client = TestClient(app)
 
@@ -58,6 +61,7 @@ class TestApp(unittest.TestCase):
 
         self.assert_upload_response(response)
 
+    # pylint: disable=dangerous-default-value
     def assert_upload_response(
         self, response, features_fields=["Testo"], target_field="Stato Workflow"
     ):
@@ -84,28 +88,39 @@ class TestApp(unittest.TestCase):
         print(dt_path)
 
     def test_upload_training_data_unzipped(self):
+        response = self.upload_test_data()
+        self.assert_upload_response(response)
+
+    # pylint: disable=dangerous-default-value
+    def upload_test_data(
+        self,
+        file_path=(test_data__data_uploaded_path / "model_data.csv").as_posix(),
+        features_fields=["Testo"],
+        target_field="Stato Workflow",
+    ):
         mod_type = "test_model"
         biz_task = config.Constants.BIZ_TASK_SPAM
         project = "test_project"
 
-        with open(test_data__data_uploaded_path / "model_data.csv", "rb") as file:
+        with open(file_path, "rb") as file:
             file_data = file.read()
 
         response = client.post(
             f"/models/{biz_task}/{mod_type}/{project}/upload_train_data",
             data={
-                "features_fields": ["Testo"],
-                "target_field": "Stato Workflow",
+                "features_fields": features_fields,
+                "target_field": target_field,
             },
             files={
                 "train_data": (
-                    "model_data.csv",
+                    file_path,
                     file_data,
                     "application/csv",
                 )
             },
         )
-        self.assert_upload_response(response)
+
+        return response
 
     def test_upload_training_data_unzipped_csv_filename_should_be_renamed(self):
         mod_type = "test_model"
@@ -164,3 +179,65 @@ class TestApp(unittest.TestCase):
         response = client.get("/isalive")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"alive": True})
+
+    def test_predict(self):
+
+        tasks_executor.reset()
+
+        response = self.upload_test_data(
+            "test_data/23457ec5-79c6-4542-a14a-14a3c96d90cb.csv",
+            features_fields=["text"],
+            target_field="status",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        biz_task = response.json()["modelInstance"]["task"]
+        mod_type = response.json()["modelInstance"]["type"]
+        project = response.json()["modelInstance"]["project"]
+        instance_name = response.json()["modelInstance"]["instance_name"]
+        model_instance_id = (
+            biz_task + "/" + mod_type + "/" + project + "/" + instance_name
+        )
+
+        count = 0
+        # Wait for the model instance to be created
+        while models.find_model_instance(model_instance_id) is None:
+            sleep(1)
+            count += 1
+            # after 5 seconds we should have the model instance created, raise an error otherwise
+            if count > 5:
+                raise Exception("Model instance not created in 5 seconds")
+
+        mi = models.find_model_instance(model_instance_id)
+        self.assertTrue(mi.is_trainable())
+
+        mi.train()
+        print(mi.to_json())
+        self.assertTrue(mi.is_servable())
+
+        prediction_input = PredictionInput(
+            features=[Feature(name="text", value="Ciao ciccio!")]
+        )
+
+        response = client.post(
+            f"/models/{biz_task}/{mod_type}/{project}/predict",
+            json=prediction_input.model_dump(),
+        )
+        # Check the response status code
+        self.assertEqual(response.status_code, 200)
+
+        value = response.json()["predictions"][0]["prediction"][0]["value"]
+        self.assertEqual(value, "spam")
+
+    def test_get_all_models(self):
+        response = client.get("/models")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("models", data)
+
+    def test_get_active_models(self):
+        response = client.get("/models/active")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("activeModels", data)

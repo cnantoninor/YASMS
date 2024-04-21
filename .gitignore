@@ -15,7 +15,8 @@ notebook/**/*.csv
 **/.pytest_cache
 **/.lock_preprocessing
 **/.ipynb_checkpoints
-data/*
+data/**
+!data/.gitkeep
 src/app.log
 **/uvicorn.log
 **/uvicorn.err.log
@@ -27,3 +28,4 @@ app.log
 htmlcov
 .mono
 remote/85.235.146.174/data
+.VSCodeCounter

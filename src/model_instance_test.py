@@ -3,7 +3,7 @@ import unittest
 import tempfile
 
 from mock import MagicMock, patch
-from model_instance import ModelInstance, ModelInstanceStateEnum, Models
+from model_instance import ModelInstance, ModelInstanceStateEnum, _Models, models
 from config import Constants
 from utils_test import (
     test_mdlc_data_path,
@@ -133,6 +133,9 @@ class TestModelInstance(unittest.TestCase):
             ModelInstanceStateEnum.TRAINED_READY_TO_SERVE,
             "ModelInstance.state should be TRAINED_READY_TO_SERVE when TRAINED_MODEL_FILE file exists",
         )
+        self.assertEqual(mis.stats_time["cvTimeSecs"], 5.0)
+        self.assertEqual(mis.stats_time["fitTimeSecs"], 1.0)
+        self.assertIsNotNone(mis.stats_metrics)
 
     def test_determine_state_when_training_failed(self):
         # Test TRAINING_FAILED: when the dir contains training error log file
@@ -152,33 +155,29 @@ class TestModelInstance(unittest.TestCase):
     def test_from_train_directory__invalid_should_raise_file_not_found(self):
         # Test from_train_directory when the directory does not exist
         with self.assertRaises(FileNotFoundError):
-            Models("/sdfsdfdsf")
+            _Models("/sdfsdfdsf")
 
     def test_from_train_directory(self):
-        data_dir = test_mdlc_data_path.as_posix().replace("/", os.path.sep)
-        models = Models(data_dir)
-        trainable_models = models.trainable.values()
-        servable_models = models.servable.values()
-        other_models = models.other.values()
+        models_from_train_dir = _Models(test_mdlc_data_path.as_posix())
         self.assertEqual(
-            len(trainable_models),
+            len(models_from_train_dir.trainable_model_instances),
             2,
             "Models should return 2 trainable model instances",
         )
 
         self.assertEqual(
-            len(servable_models),
+            len(models_from_train_dir.servable_model_instances),
             1,
             "Models should return 1 servable model instances",
         )
 
         self.assertEqual(
-            len(other_models),
+            len(models_from_train_dir.other_model_instances),
             1,
             "Models should return 1 `other` model instances",
         )
 
-        for model in trainable_models:
+        for model in models_from_train_dir.trainable_model_instances:
             self.assertEqual(
                 model.state.name,
                 model.instance,
@@ -200,6 +199,23 @@ class TestModelInstance(unittest.TestCase):
         mis, _ = training_failed_mis_and_dir()
         with self.assertRaises(ValueError):
             mis.check_trainable()
+
+    def test_check_servable(self):
+        # Test check_servable
+        mis, _ = data_uploaded_mis_and_dir()
+        with self.assertRaises(ValueError):
+            mis.check_servable()
+
+        mis, _ = training_in_progress_mis_and_dir()
+        with self.assertRaises(ValueError):
+            mis.check_servable()
+
+        mis, _ = trained_ready_to_serve_mis_and_dir()
+        mis.check_servable()
+
+        mis, _ = training_failed_mis_and_dir()
+        with self.assertRaises(ValueError):
+            mis.check_servable()
 
     def test_load_training_data(self):
         # Test load_training_data
@@ -245,7 +261,7 @@ class TestModelInstance(unittest.TestCase):
             + os.path.sep
             + "test_project"
             + os.path.sep
-            + "20240311_19-52-03-239251",
+            + "20020311_19-52-03-239251",
             [ModelInstanceStateEnum.TRAINING_IN_PROGRESS],
             [],
         ),
@@ -258,29 +274,79 @@ class TestModelInstance(unittest.TestCase):
             + os.path.sep
             + "test_project"
             + os.path.sep
-            + "20240312_19-52-03-239251",
+            + "19731121_06-52-03-239251",
+            [ModelInstanceStateEnum.TRAINED_READY_TO_SERVE],
+            [],
+        ),
+        (
+            "data_dir"
+            + os.path.sep
+            + "spam_classifier"
+            + os.path.sep
+            + "test_model"
+            + os.path.sep
+            + "test_project"
+            + os.path.sep
+            + "19730312_19-52-03-239251",
             [ModelInstanceStateEnum.TRAINED_READY_TO_SERVE],
             [],
         ),
     ]
 
-    @patch("os.path.exists", return_value=True)
-    @patch("os.walk", return_value=mock_walk_data)
-    def test_active_models(self, mock_exists, mock_walk):
-        data_dir = "data_dir"
+    def test_active_models(self):
         mock_instances = []
         for data in TestModelInstance.mock_walk_data:
             model_instance = MagicMock()
             model_instance.state = data[1][0]
+            model_instance.is_servable.return_value = (
+                model_instance.state == ModelInstanceStateEnum.TRAINED_READY_TO_SERVE
+            )
+
+            model_instance.is_trainable.return_value = (
+                model_instance.state == ModelInstanceStateEnum.TRAINING_IN_PROGRESS
+            )
             model_instance.instance = data[0].split(os.path.sep)[-1]
+            mode_type_id = "spam_classifier/test_model/test_project"
+            model_instance.type_identifier = mode_type_id
+            model_instance.type = "test_model"
+            model_instance.task = "spam_classifier"
+            model_instance.project = "test_project"
+            model_instance.identifier = mode_type_id + "/" + model_instance.instance
             mock_instances.append(model_instance)
         with patch("model_instance.ModelInstance", side_effect=mock_instances):
-            models = Models(data_dir)
-            self.assertEqual(
-                len(models),
-                len(TestModelInstance.mock_walk_data),
-                "ModelInstance.load_models_from should return 4 model instances",
-            )
+            with patch("os.path.exists", return_value=True):
+                with patch("os.walk", return_value=TestModelInstance.mock_walk_data):
+                    # pylint: disable=protected-access
+                    models._root_data_dir = "data_dir"
+                    models.reload()
+                    self.assertEqual(
+                        len(models),
+                        len(TestModelInstance.mock_walk_data),
+                        "ModelInstance.active_models should return 2 model instances",
+                    )
+                    self.assertEqual(
+                        len(
+                            models.trainable["spam_classifier/test_model/test_project"]
+                        ),
+                        1,
+                        "ModelInstance.active_models should return 1 trainable model instances",
+                    )
+                    self.assertEqual(
+                        len(models.servable["spam_classifier/test_model/test_project"]),
+                        2,
+                        "ModelInstance.active_models should return 2 servable model instances",
+                    )
+                    self.assertEqual(
+                        models.servable["spam_classifier/test_model/test_project"][
+                            0
+                        ].state,
+                        ModelInstanceStateEnum.TRAINED_READY_TO_SERVE,
+                    )
+                    self.assertIsNotNone(models.get_active_model_for_type(mode_type_id))
+                    self.assertEqual(
+                        models.get_active_model_for_type(mode_type_id).identifier,
+                        mode_type_id + "/19731121_06-52-03-239251",
+                    )
 
 
 if __name__ == "__main__":
