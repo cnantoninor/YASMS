@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 import config
 from app import app, determine_model_instance_name_date_path
 from model_instance import ModelInstance, ModelInstanceStateEnum, models
+from prediction_model import Feature, PredictionInput
 from utils_test import test_data__data_uploaded_path, test_data_path
 from task_manager import tasks_executor, tasks_queue
 
@@ -89,8 +90,12 @@ class TestApp(unittest.TestCase):
         response = self.upload_test_data()
         self.assert_upload_response(response)
 
+    # pylint: disable=dangerous-default-value
     def upload_test_data(
-        self, file_path=(test_data__data_uploaded_path / "model_data.csv").as_posix()
+        self,
+        file_path=(test_data__data_uploaded_path / "model_data.csv").as_posix(),
+        features_fields=["Testo"],
+        target_field="Stato Workflow",
     ):
         mod_type = "test_model"
         biz_task = config.Constants.BIZ_TASK_SPAM
@@ -102,8 +107,8 @@ class TestApp(unittest.TestCase):
         response = client.post(
             f"/models/{biz_task}/{mod_type}/{project}/upload_train_data",
             data={
-                "features_fields": ["Testo"],
-                "target_field": "Stato Workflow",
+                "features_fields": features_fields,
+                "target_field": target_field,
             },
             files={
                 "train_data": (
@@ -179,7 +184,9 @@ class TestApp(unittest.TestCase):
         tasks_executor.reset()
 
         response = self.upload_test_data(
-            "test_data/23457ec5-79c6-4542-a14a-14a3c96d90cb.csv"
+            "test_data/23457ec5-79c6-4542-a14a-14a3c96d90cb.csv",
+            features_fields=["text"],
+            target_field="status",
         )
 
         self.assertEqual(response.status_code, 200)
@@ -202,19 +209,22 @@ class TestApp(unittest.TestCase):
                 raise Exception("Model instance not created in 5 seconds")
 
         mi = models.find_model_instance(model_instance_id)
-        self.assertTrue(mi.is_trainable)
+        self.assertTrue(mi.is_trainable())
 
         mi.train()
         print(mi.to_json())
         self.assertTrue(mi.is_servable())
 
-        # Define a mock request
-        json_request = {"features": [{"name": "Testo", "value": "string"}]}
+        prediction_input = PredictionInput(
+            features=[Feature(name="text", value="Ciao ciccio!")]
+        )
 
         response = client.post(
             f"/models/{biz_task}/{mod_type}/{project}/predict",
-            json=json_request,
+            json=prediction_input.model_dump(),
         )
-
         # Check the response status code
-        assert response.status_code == 200
+        self.assertEqual(response.status_code, 200)
+
+        value = response.json()["predictions"][0]["prediction"][0]["value"]
+        self.assertEqual(value, "spam")

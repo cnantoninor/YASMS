@@ -264,7 +264,7 @@ class _TasksExecutor:
 
     def wait(self):
         if is_test_environment():
-            time.sleep(0.1)
+            time.sleep(2)
         else:
             time.sleep(10)
 

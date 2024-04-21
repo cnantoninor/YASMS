@@ -296,8 +296,9 @@ async def upload_train_data(
         with zipfile.ZipFile(io.BytesIO(contents), "r") as zip_ref:
             zip_ref.extractall(path=uploaded_data_dir)
     else:
+        filename = os.path.basename(train_data.filename)
         # If it's not a zip file, write it directly
-        with open(os.path.join(uploaded_data_dir, train_data.filename), "wb") as f:
+        with open(os.path.join(uploaded_data_dir, filename), "wb") as f:
             f.write(contents)
 
     _write_features_and_target_fields(uploaded_data_dir, features_fields, target_field)

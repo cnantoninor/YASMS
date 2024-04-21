@@ -262,8 +262,8 @@ class ModelInstance:
 
     def is_trainable(self):
         return (
-            self.state == ModelInstanceStateEnum.DATA_UPLOADED
-            or self.state == ModelInstanceStateEnum.TRAINING_IN_PROGRESS
+            self.state is ModelInstanceStateEnum.DATA_UPLOADED
+            or self.state is ModelInstanceStateEnum.TRAINING_IN_PROGRESS
         )
 
     def is_servable(self):
@@ -380,6 +380,7 @@ class ModelInstance:
             )
             # remove the training in progress file
             os.remove(self.__training_in_progress_file)
+            self.reload_state()
         except Exception as e:
             err_msg = traceback.format_exc()
             # write the error to the training error log file

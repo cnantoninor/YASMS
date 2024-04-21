@@ -13,7 +13,6 @@ class TrainingTask(Task):
 
     def execute(self):
         logging.debug("START Execute training task `%s`", self)
-        self.model_instance.train()
         if not is_test_environment():
             self.model_instance.train()
         else:
