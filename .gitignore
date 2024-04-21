@@ -15,7 +15,7 @@ notebook/**/*.csv
 **/.pytest_cache
 **/.lock_preprocessing
 **/.ipynb_checkpoints
-data/*
+data/**
 src/app.log
 **/uvicorn.log
 **/uvicorn.err.log
