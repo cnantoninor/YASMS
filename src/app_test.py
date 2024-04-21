@@ -228,3 +228,24 @@ class TestApp(unittest.TestCase):
 
         value = response.json()["predictions"][0]["prediction"][0]["value"]
         self.assertEqual(value, "spam")
+
+    def test_get_active_models(self):
+        response = client.get("/models/active")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("activeModels", data)
+        self.assertIn("spam_classifier/test_model/test_project", data["activeModels"])
+        model_data = data["activeModels"]["spam_classifier/test_model/test_project"]
+        self.assertEqual(model_data["task"], "spam_classifier")
+        self.assertEqual(model_data["type"], "test_model")
+        self.assertEqual(model_data["project"], "test_project")
+        self.assertEqual(model_data["state"], "TRAINED_READY_TO_SERVE")
+        self.assertIn("training_log", model_data)
+        self.assertIn("features", model_data)
+        self.assertEqual(model_data["features"], ["text"])
+        self.assertEqual(model_data["target"], "status")
+        self.assertIn("stats", model_data)
+        stats = model_data["stats"]
+        self.assertIn("metrics", stats)
+        self.assertIn("confusion_matrix", stats)
+        self.assertIn("time", stats)

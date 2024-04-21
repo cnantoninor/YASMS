@@ -195,10 +195,10 @@ async def get_tasks_queue():
 async def get_active_models():
     """
 
-    # NOT IMPLEMENTED YET
+    Retrieves the details of all the active models.
 
     """
-    raise NotImplementedError("This endpoint is not implemented yet.")
+    return JSONResponse(content={"activeModels": models.get_active_models()})
 
 
 @app.get("/models", tags=["models"])
@@ -209,9 +209,7 @@ async def get_all_models():
     # Returns:
         dict: A dictionary containing the state of all the model instances.
     """
-    return JSONResponse(
-        content={"models": _Models(config.data_path.as_posix()).to_json(verbose=True)}
-    )
+    return JSONResponse(content={"models": models.to_json(verbose=True)})
 
 
 @app.get("/models/registered_types", tags=["models"])

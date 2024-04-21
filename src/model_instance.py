@@ -119,14 +119,29 @@ class _Models:
             self._other_dict[model_type_id] = models_for_type
             logging.debug("Added model instance `%s` as other", model_instance)
 
-    def get_active_model_for_type(self, model_type_id: str):
+    def get_active_model_for_type(self, model_type_id: str) -> ModelInstance:
+        """
+        Get the active model instance for the passed model type id, if not found raise a ValueError.
+        An `active` model instance is the newest servable model instance if available for a model type.
+
+        """
         if model_type_id in self._servable_dict:
             return self._servable_dict[model_type_id][0]
-        if model_type_id in self._trainable_dict:
-            return self._trainable_dict[model_type_id][0]
         raise ValueError(
-            f"No active model found for passed model type id:`{model_type_id}`, available model types are:`{self._servable_dict.keys()}`"
+            f"No trainable or servable model found for passed model type id:`{model_type_id}`, available model types are:`{self._servable_dict.keys()}`"
         )
+
+    def get_active_models(self):
+        """
+        Get the active model instances for all model types, i.e. the newest servable model instance for each model type.
+        """
+        active_models = {}
+        # pylint: disable=consider-using-dict-items
+        for model_type_id in self._servable_dict.keys():
+            active_models[model_type_id] = self.get_active_model_for_type(
+                model_type_id
+            ).to_json()
+        return active_models
 
     def find_model_instance(self, model_instance_id: str) -> ModelInstance:
         for model_instances in chain(
