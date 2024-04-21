@@ -57,7 +57,7 @@ class TestSubscriber(unittest.TestCase):
             tasks_queue.submit(task)
             self.assertEqual(tasks_queue.size, 1)
             self.assertTrue(tasks_executor.is_running)
-            time.sleep(0.5)
+            time.sleep(2.2)
             print(tasks_queue.to_json())
             # pylint: disable=protected-access
             self.assertEqual(
