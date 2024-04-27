@@ -354,31 +354,34 @@ class TestModelInstance(unittest.TestCase):
             with patch("os.walk", return_value=[]):
                 mods = _Models("data_dir")
                 mods._servable_dict = {
-                    "spam_classifier/GradientBoostingClassifier/lodes_2": "value1",
-                    "spam_classifier/GradientBoostingClassifier/lodes": "value2",
+                    "spam_classifier/GradientBoostingClassifier/lodes_2": ["value1"],
+                    "spam_classifier/GradientBoostingClassifier/lodes": ["value2"],
                 }
                 mods._trainable_dict = {
-                    "spam_classifier/GradientBoostingClassifier/lodes_2": "value3",
-                    "key4": "value4",
+                    "spam_classifier/GradientBoostingClassifier/lodes_2": ["value3"],
+                    "key4": ["value4"],
                 }
-                mods._other_dict = {"key5": "value5", "key6": "value6"}
+                mods._other_dict = {"key5": "value5", "key6": ["value6"]}
 
                 result = mods.to_json(
                     verbose=False,
                     regex="spam_classifier/GradientBoostingClassifier/lodes*",
                 )
 
+                print(result)
+
                 expected = {
                     "servable": {
-                        "spam_classifier/GradientBoostingClassifier/lodes_2": "value1",
-                        "spam_classifier/GradientBoostingClassifier/lodes": "value2",
+                        "spam_classifier/GradientBoostingClassifier/lodes_2": [
+                            "value1"
+                        ],
+                        "spam_classifier/GradientBoostingClassifier/lodes": ["value2"],
                     },
                     "trainable": {
-                        "spam_classifier/GradientBoostingClassifier/lodes_2": "value3"
+                        "spam_classifier/GradientBoostingClassifier/lodes_2": ["value3"]
                     },
                     "other": {},
                 }
-
                 self.assertEqual(result, expected)
 
 

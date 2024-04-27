@@ -201,44 +201,44 @@ class _Models:
 
         return self
 
-    def to_json(self, verbose: bool = False, regex: str = None):
+    def to_json(self, verbose: bool = True, regex: str = None):
 
         if not verbose:
             return {
                 "servable": {
-                    k: str(v)
+                    k: [str(item) for item in v]
                     for k, v in self._servable_dict.items()
                     if not regex or re.search(regex, k)
                 },
                 "trainable": {
-                    k: str(v)
+                    k: [str(item) for item in v]
                     for k, v in self._trainable_dict.items()
                     if not regex or re.search(regex, k)
                 },
                 "other": {
-                    k: str(v)
+                    k: [str(item) for item in v]
                     for k, v in self._other_dict.items()
                     if not regex or re.search(regex, k)
                 },
             }
-        else:
-            return {
-                "servable": {
-                    k: [item.to_json() for item in v]
-                    for k, v in self._servable_dict.items()
-                    if not regex or re.search(regex, k)
-                },
-                "trainable": {
-                    k: [item.to_json() for item in v]
-                    for k, v in self._trainable_dict.items()
-                    if not regex or re.search(regex, k)
-                },
-                "other": {
-                    k: [item.to_json() for item in v]
-                    for k, v in self._other_dict.items()
-                    if not regex or re.search(regex, k)
-                },
-            }
+
+        return {
+            "servable": {
+                k: [item.to_json() for item in v]
+                for k, v in self._servable_dict.items()
+                if not regex or re.search(regex, k)
+            },
+            "trainable": {
+                k: [item.to_json() for item in v]
+                for k, v in self._trainable_dict.items()
+                if not regex or re.search(regex, k)
+            },
+            "other": {
+                k: [item.to_json() for item in v]
+                for k, v in self._other_dict.items()
+                if not regex or re.search(regex, k)
+            },
+        }
 
     def _populate(self, dir_name: str) -> _Models:
         # check directory exists

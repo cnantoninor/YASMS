@@ -203,15 +203,21 @@ async def get_active_models():
 
 
 @app.get("/models", tags=["models"])
-async def get_models(verbose: bool = False, regex_filter: str = None):
+async def get_models(verbose: bool = True, regex_filter: str = None):
     """
-    Retrieves the details of all the models.
+    Retrieves the details of all the models eventually filtered by the `regex_filter`.
+    E.g.: spam_classifier/* will return all the models for the `spam_classifier` business task.
 
     # Parameters:
-        - regex_filter (str, optional): A regular expression filter to apply on the model instances.
+        - verbose (bool, optional): A flag to indicate whether to include the model details in the response.
+            Defaults to True.
+            If False, only the model instance names are included in the response.
+
+        - regex_filter (str, optional): An optional regular expression filter to apply on the model instance names.
 
     # Returns:
-        dict: A dictionary containing the state of all the model instances that match the filter.
+        dict: A dictionary containing the state of all the model instances
+            that match the eventual filter and the eventual filter applied.
     """
     return JSONResponse(
         content={
