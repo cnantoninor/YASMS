@@ -8,6 +8,7 @@ from enum import IntEnum
 import os
 from pathlib import Path
 import pickle
+import re
 import traceback
 from typing import Dict, List
 import numpy
@@ -199,27 +200,42 @@ class _Models:
 
         return self
 
-    def to_json(self, verbose: bool = False):
+    def to_json(self, verbose: bool = False, regex: str = None):
 
         if not verbose:
             return {
-                "servable": {k: str(v) for k, v in self._servable_dict.items()},
-                "trainable": {k: str(v) for k, v in self._trainable_dict.items()},
-                "other": {k: str(v) for k, v in self._other_dict.items()},
+                "servable": {
+                    k: str(v)
+                    for k, v in self._servable_dict.items()
+                    if not regex or re.search(regex, k)
+                },
+                "trainable": {
+                    k: str(v)
+                    for k, v in self._trainable_dict.items()
+                    if not regex or re.search(regex, k)
+                },
+                "other": {
+                    k: str(v)
+                    for k, v in self._other_dict.items()
+                    if not regex or re.search(regex, k)
+                },
             }
         else:
             return {
                 "servable": {
                     k: [item.to_json() for item in v]
                     for k, v in self._servable_dict.items()
+                    if not regex or re.search(regex, k)
                 },
                 "trainable": {
                     k: [item.to_json() for item in v]
                     for k, v in self._trainable_dict.items()
+                    if not regex or re.search(regex, k)
                 },
                 "other": {
                     k: [item.to_json() for item in v]
                     for k, v in self._other_dict.items()
+                    if not regex or re.search(regex, k)
                 },
             }
 

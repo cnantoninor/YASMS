@@ -23,7 +23,7 @@ from trainer import TrainingTask
 
 bootstrap_app()
 
-app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.9")
+app = FastAPI(title="Y.A.M.S (Yet Another Model Server)", version="0.9.1")
 
 
 @app.exception_handler(RequestValidationError)
@@ -203,14 +203,25 @@ async def get_active_models():
 
 
 @app.get("/models", tags=["models"])
-async def get_all_models():
+async def get_models(verbose: bool = False, regex_filter: str = None):
     """
     Retrieves the details of all the models.
 
+    # Parameters:
+        - regex_filter (str, optional): A regular expression filter to apply on the model instances.
+
     # Returns:
-        dict: A dictionary containing the state of all the model instances.
+        dict: A dictionary containing the state of all the model instances that match the filter.
     """
-    return JSONResponse(content={"models": models.to_json(verbose=True)})
+    return JSONResponse(
+        content={
+            "regex_filter": regex_filter,
+            "models": models.to_json(
+                verbose=verbose,
+                regex=regex_filter,
+            ),
+        }
+    )
 
 
 @app.get("/models/registered_types", tags=["models"])
