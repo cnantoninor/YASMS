@@ -348,6 +348,7 @@ class TestModelInstance(unittest.TestCase):
                         mode_type_id + "/19731121_06-52-03-239251",
                     )
 
+    # pylint: disable=protected-access
     def test_to_json_with_regex(self):
         with patch("os.path.exists", return_value=True):
             with patch("os.walk", return_value=[]):

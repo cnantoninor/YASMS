@@ -4,6 +4,8 @@ from itertools import chain
 import json
 import logging
 
+import time
+
 from enum import IntEnum
 import os
 from pathlib import Path
@@ -21,7 +23,6 @@ from config import Constants, data_path
 from environment import is_test_environment
 from prediction_model import PredictionInput, PredictionOutput
 from utils import import_class_from_string
-import time
 
 
 logger = logging.getLogger(__name__)
@@ -137,7 +138,7 @@ class _Models:
         Get the active model instances for all model types, i.e. the newest servable model instance for each model type.
         """
         active_models = {}
-        # pylint: disable=consider-using-dict-items
+        # pylint: disable=consider-using-dict-items, consider-iterating-dictionary
         for model_type_id in self._servable_dict.keys():
             active_models[model_type_id] = self.get_active_model_for_type(
                 model_type_id
