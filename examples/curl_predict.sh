@@ -21,7 +21,7 @@ curl -X 'POST' \
   "features": [
     {
       "name": "text",
-      "value": "FuoriSalone 2024"
+      "value": "$TEXT"
     }
   ]
 }'

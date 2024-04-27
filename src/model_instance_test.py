@@ -348,6 +348,42 @@ class TestModelInstance(unittest.TestCase):
                         mode_type_id + "/19731121_06-52-03-239251",
                     )
 
+    # pylint: disable=protected-access
+    def test_to_json_with_regex(self):
+        with patch("os.path.exists", return_value=True):
+            with patch("os.walk", return_value=[]):
+                mods = _Models("data_dir")
+                mods._servable_dict = {
+                    "spam_classifier/GradientBoostingClassifier/lodes_2": ["value1"],
+                    "spam_classifier/GradientBoostingClassifier/lodes": ["value2"],
+                }
+                mods._trainable_dict = {
+                    "spam_classifier/GradientBoostingClassifier/lodes_2": ["value3"],
+                    "key4": ["value4"],
+                }
+                mods._other_dict = {"key5": "value5", "key6": ["value6"]}
+
+                result = mods.to_json(
+                    verbose=False,
+                    regex="spam_classifier/GradientBoostingClassifier/lodes*",
+                )
+
+                print(result)
+
+                expected = {
+                    "servable": {
+                        "spam_classifier/GradientBoostingClassifier/lodes_2": [
+                            "value1"
+                        ],
+                        "spam_classifier/GradientBoostingClassifier/lodes": ["value2"],
+                    },
+                    "trainable": {
+                        "spam_classifier/GradientBoostingClassifier/lodes_2": ["value3"]
+                    },
+                    "other": {},
+                }
+                self.assertEqual(result, expected)
+
 
 if __name__ == "__main__":
     unittest.main()

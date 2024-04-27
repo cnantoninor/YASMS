@@ -4,10 +4,13 @@ from itertools import chain
 import json
 import logging
 
+import time
+
 from enum import IntEnum
 import os
 from pathlib import Path
 import pickle
+import re
 import traceback
 from typing import Dict, List
 import numpy
@@ -20,7 +23,6 @@ from config import Constants, data_path
 from environment import is_test_environment
 from prediction_model import PredictionInput, PredictionOutput
 from utils import import_class_from_string
-import time
 
 
 logger = logging.getLogger(__name__)
@@ -136,7 +138,7 @@ class _Models:
         Get the active model instances for all model types, i.e. the newest servable model instance for each model type.
         """
         active_models = {}
-        # pylint: disable=consider-using-dict-items
+        # pylint: disable=consider-using-dict-items, consider-iterating-dictionary
         for model_type_id in self._servable_dict.keys():
             active_models[model_type_id] = self.get_active_model_for_type(
                 model_type_id
@@ -199,29 +201,44 @@ class _Models:
 
         return self
 
-    def to_json(self, verbose: bool = False):
+    def to_json(self, verbose: bool = True, regex: str = None):
 
         if not verbose:
             return {
-                "servable": {k: str(v) for k, v in self._servable_dict.items()},
-                "trainable": {k: str(v) for k, v in self._trainable_dict.items()},
-                "other": {k: str(v) for k, v in self._other_dict.items()},
-            }
-        else:
-            return {
                 "servable": {
-                    k: [item.to_json() for item in v]
+                    k: [str(item) for item in v]
                     for k, v in self._servable_dict.items()
+                    if not regex or re.search(regex, k)
                 },
                 "trainable": {
-                    k: [item.to_json() for item in v]
+                    k: [str(item) for item in v]
                     for k, v in self._trainable_dict.items()
+                    if not regex or re.search(regex, k)
                 },
                 "other": {
-                    k: [item.to_json() for item in v]
+                    k: [str(item) for item in v]
                     for k, v in self._other_dict.items()
+                    if not regex or re.search(regex, k)
                 },
             }
+
+        return {
+            "servable": {
+                k: [item.to_json() for item in v]
+                for k, v in self._servable_dict.items()
+                if not regex or re.search(regex, k)
+            },
+            "trainable": {
+                k: [item.to_json() for item in v]
+                for k, v in self._trainable_dict.items()
+                if not regex or re.search(regex, k)
+            },
+            "other": {
+                k: [item.to_json() for item in v]
+                for k, v in self._other_dict.items()
+                if not regex or re.search(regex, k)
+            },
+        }
 
     def _populate(self, dir_name: str) -> _Models:
         # check directory exists
