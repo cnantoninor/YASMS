@@ -126,3 +126,33 @@ Anywhere                   ALLOW IN    72.80.205.0/24
 22                         ALLOW IN    Anywhere                  
 8000                       ALLOW IN    188.12.139.142            
 ```
+
+### Log Rotation
+
+To use logrotate for managing your logs, you need to create a configuration file for logrotate. Here's a step-by-step plan:
+
+1. Create a new logrotate configuration file, e.g., `/etc/logrotate.d/uvicorn`.
+In this file, specify the path to your log files, the rotation interval, the number of backups to keep, and any other options you want to use.
+
+```txt
+/home/user/projects/wl-semsearch-poc/*.log {
+    daily
+    rotate 7
+    compress
+    missingok
+    notifempty
+    create 0644 user group
+}
+```
+
+This configuration will rotate the log files daily, keep 7 days of backups, compress rotated files, and create new log files with the specified permissions and ownership if they don't exist.
+
+Finally, ensure that `logrotate` is run daily by the cron daemon,  you can add a cron job manually with `crontab -e` and adding the following line:
+
+```bash
+crontab -e
+
+@daily /usr/sbin/logrotate /etc/logrotate.conf
+```
+
+This will run logrotate daily using the main configuration file /etc/logrotate.conf, which includes all files in the /etc/logrotate.d directory.
