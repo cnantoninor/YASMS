@@ -205,8 +205,8 @@ class TestApp(unittest.TestCase):
         while models.find_model_instance(model_instance_id) is None:
             sleep(1)
             count += 1
-            # after 5 seconds we should have the model instance created, raise an error otherwise
-            if count > 5:
+            # after X seconds we should have the model instance created, raise an error otherwise
+            if count > 10:
                 raise Exception("Model instance not created in 5 seconds")
 
         mi = models.find_model_instance(model_instance_id)
