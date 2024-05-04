@@ -19,6 +19,7 @@ http://localhost:8000/docs
 ```
 
 ### Logs
+
 ```bash
 cat app.log
 ```
@@ -34,6 +35,7 @@ cat uvicorn.err.log
 ## ArubaCloud Setup
 
 1. Connect to remote server
+
 ```bash
 scripts/ssh-connect-aruba.sh
 ```
@@ -45,6 +47,7 @@ git clone...
 ```
 
 3. Execute the Aruba setup script on the remote server
+
 ```bash
 scripts/setup-aruba.sh
 ```
@@ -77,8 +80,3 @@ sudo ss -ltn
 ```bash
 tac /var/log/ufw.log | head -n 20
 ```
-
-
-
-
-
