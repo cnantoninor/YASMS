@@ -3,7 +3,7 @@ brotli==1.1.0
 brotlicffi==1.1.0.0
 ConfigParser==6.0.0
 contextlib2==21.6.0
-cryptography==42.0.3
+cryptography==42.0.4
 docutils==0.20.1
 fastapi==0.109.2
 filelock==3.13.1
